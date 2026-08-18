@@ -3,6 +3,7 @@ import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3 } from 'l
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import InlineEditableCell from './InlineEditableCell'
+import FieldTooltip from '../../components/FieldTooltip'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
@@ -31,20 +32,20 @@ const generateMonthData = (month) => {
     const plannedMoveCount = null
 
     // 场站资产总功率（模拟值）
-    const totalPower = getRandom(500, 2000)
-    // 最大充电产�?= 场站资产总功�?× 744h × 85%
+    const totalPower = getRandom(50, 200)
+    // 最大充电产能（最大可以充多少台车）
     const maxChargingCapacity = Math.round(totalPower * 744 * 0.85)
 
     // 充电车台数（归属本站4518档案的公交车辆数量）
     const chargingBusCount = getRandom(30, 80)
 
-    // 实际充电车台�?平台VIN)（当月在本站产生充电记录的车辆数�?
+    // 实际充电车台数(平台VIN)（当月在本站产生充电记录的车辆数）
     const actualChargingBusCount = getRandom(20, chargingBusCount)
 
     // 总公交充电量(kWh)
     const totalBusCharging = getRandom(50000, 300000)
 
-    // 单车日均充电�?= 总公交充电量 ÷ 实际充电车台�?÷ 31
+    // 单车日均充电量 = 总公交充电量 ÷ 实际充电车台数 ÷ 31
     const dailyPerBusCharging = actualChargingBusCount > 0
       ? (totalBusCharging / actualChargingBusCount / 31).toFixed(2)
       : '0.00'
@@ -63,24 +64,46 @@ const generateMonthData = (month) => {
   })
 }
 
-// ==================== 列定�?====================
+// ==================== 列定义====================
 const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-48' },
   { key: 'month', title: '月份', width: 'w-20' },
-  { key: 'totalBusCount', title: '总车台数', width: 'w-20', editable: true },
-  { key: 'maxChargingCapacity', title: '最大充电产能(kWh/月)', width: 'w-32' },
+  { key: 'totalBusCount', title: '夜停车台数', width: 'w-20', editable: true },
+  { key: 'maxChargingCapacity', title: '最大充电产能(台)', width: 'w-32', editable: true },
   { key: 'chargingBusCount', title: '充电车台数', width: 'w-20' },
   { key: 'plannedMoveCount', title: '计划挪车车台数', width: 'w-24', editable: true },
   { key: 'actualChargingBusCount', title: '实际充电车台数(平台VIN)', width: 'w-36' },
   { key: 'totalBusCharging', title: '总公交充电量(kWh)', width: 'w-28' },
   { key: 'dailyPerBusCharging', title: '单车日均充电量(kWh)', width: 'w-28' },
 ]
-// ==================== 格式化函�?====================
+// ==================== 格式化函数====================
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined) return '-'
   if (typeof value === 'string') return value
   return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value)
+}
+
+const normalizeIntegerValue = (value) => {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : null
+}
+
+const parseImportRows = async (file) => {
+  const text = await file.text()
+  const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean)
+  if (!lines.length) return []
+
+  const headers = lines[0].split(',').map(item => item.trim())
+  const rows = lines.slice(1).map(line => {
+    const values = line.split(',').map(item => item.trim())
+    const row = {}
+    headers.forEach((header, index) => {
+      row[header] = values[index] ?? ''
+    })
+    return row
+  })
+  return rows
 }
 
 // ==================== 组件 ====================
@@ -95,8 +118,9 @@ const StationBusOperation = () => {
   const [manualModalOpen, setManualModalOpen] = useState(false)
   const [importMonth, setImportMonth] = useState('')
   const [importFile, setImportFile] = useState(null)
+  const [importMessage, setImportMessage] = useState('')
   const [editingStation, setEditingStation] = useState(null)
-  const [manualForm, setManualForm] = useState({ totalBusCount: '', plannedMoveCount: '' })
+  const [manualForm, setManualForm] = useState({ totalBusCount: '', plannedMoveCount: '', maxChargingCapacity: '' })
 
   // 月度数据存储
   const [monthlyData, setMonthlyData] = useState(() => {
@@ -121,6 +145,7 @@ const StationBusOperation = () => {
     setManualForm({
       totalBusCount: station.totalBusCount !== null ? station.totalBusCount : '',
       plannedMoveCount: station.plannedMoveCount !== null ? station.plannedMoveCount : '',
+      maxChargingCapacity: station.maxChargingCapacity !== null ? station.maxChargingCapacity : '',
     })
     setManualModalOpen(true)
   }
@@ -128,8 +153,9 @@ const StationBusOperation = () => {
   // 保存手动录入
   const handleManualSave = () => {
     if (!editingStation) return
-    const totalBus = parseFloat(manualForm.totalBusCount)
-    const plannedMove = parseFloat(manualForm.plannedMoveCount)
+    const totalBus = normalizeIntegerValue(manualForm.totalBusCount)
+    const plannedMove = normalizeIntegerValue(manualForm.plannedMoveCount)
+    const maxChargingCapacity = normalizeIntegerValue(manualForm.maxChargingCapacity)
 
     setMonthlyData(prev => {
       const newData = { ...prev }
@@ -137,8 +163,9 @@ const StationBusOperation = () => {
         if (station.code !== editingStation.code) return station
         return {
           ...station,
-          totalBusCount: isNaN(totalBus) ? null : totalBus,
-          plannedMoveCount: isNaN(plannedMove) ? null : plannedMove,
+          totalBusCount: totalBus,
+          plannedMoveCount: plannedMove,
+          maxChargingCapacity,
         }
       })
       return newData
@@ -154,12 +181,56 @@ const StationBusOperation = () => {
     alert(`导出成功（已选择${keys.length}个字段，前端原型模拟）`)
   }
 
+  const handleImportFile = async (file) => {
+    if (!file) return
+    if (!importMonth) {
+      setImportMessage('请先选择统计自然月。')
+      return
+    }
+    try {
+      const rows = await parseImportRows(file)
+      if (!rows.length) {
+        setImportMessage('导入文件没有可用数据。')
+        return
+      }
+
+      setMonthlyData(prev => {
+        const currentRows = prev[importMonth] || generateMonthData(importMonth)
+        const updatedRows = currentRows.map((station) => {
+          const matched = rows.find(row => row['站点编码'] === station.code)
+          if (!matched) return station
+
+          return {
+            ...station,
+            totalBusCount: normalizeIntegerValue(matched['夜停车台数']),
+            maxChargingCapacity: normalizeIntegerValue(matched['最大充电产能']) ?? station.maxChargingCapacity,
+            chargingBusCount: normalizeIntegerValue(matched['充电车台数']) ?? station.chargingBusCount,
+            plannedMoveCount: normalizeIntegerValue(matched['计划挪车车台数']),
+            actualChargingBusCount: normalizeIntegerValue(matched['实际充电车台数(平台VIN)']) ?? station.actualChargingBusCount,
+            totalBusCharging: matched['总公交充电量(kWh)'] ? Number(matched['总公交充电量(kWh)']) : station.totalBusCharging,
+            dailyPerBusCharging: matched['单车日均充电量(kWh)'] || station.dailyPerBusCharging,
+          }
+        })
+
+        return {
+          ...prev,
+          [importMonth]: updatedRows,
+        }
+      })
+
+      setImportMessage(`已导入 ${rows.length} 条记录。`)
+      setImportFile(file)
+    } catch (error) {
+      setImportMessage('导入失败，请检查文件格式。')
+    }
+  }
+
   const saveCellValue = (rowCode, colKey, nextValue) => {
     setMonthlyData(prev => ({
       ...prev,
       [selectedMonth]: prev[selectedMonth].map(station => (
         station.code === rowCode
-          ? { ...station, [colKey]: nextValue }
+          ? { ...station, [colKey]: ['totalBusCount', 'maxChargingCapacity', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'].includes(colKey) ? normalizeIntegerValue(nextValue) : nextValue }
           : station
       ))
     }))
@@ -178,7 +249,7 @@ const StationBusOperation = () => {
 
   return (
     <div className="page-container h-full flex flex-col min-w-0 overflow-hidden">
-      {/* ========== 顶部操作筛选栏（占主内容高�?2%�?========= */}
+      {/* ========== 顶部操作筛选栏（占主内容高度12%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between"
         style={{ height: '12%', minHeight: '80px' }}
@@ -198,7 +269,7 @@ const StationBusOperation = () => {
             </select>
           </div>
 
-          {/* 状态提�?*/}
+          {/* 状态提示*/}
           <div className="flex items-center gap-1 text-xs text-primary bg-blue-50 px-3 py-1.5 rounded-full">
             <Clock className="w-3 h-3" />
             <span>每月自动生成</span>
@@ -228,7 +299,7 @@ const StationBusOperation = () => {
         </div>
       </div>
 
-      {/* ========== 页面标题�?========== */}
+      {/* ========== 页面标题========== */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5 text-primary" />
@@ -237,7 +308,7 @@ const StationBusOperation = () => {
         <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
       </div>
 
-      {/* ========== 主表格区域（占剩余主内容高度86%�?========= */}
+      {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1"
         style={{ height: '86%' }}
@@ -251,18 +322,12 @@ const StationBusOperation = () => {
                     key={col.key}
                     className="px-2 py-2 border-b border-r border-gray-200 text-left text-sm font-medium text-gray-500 whitespace-nowrap min-w-[160px]"
                   >
-                    <div className="group relative inline-flex items-center gap-1">
+                    <FieldTooltip content={col.tip}>
                       {col.title}
                       {col.tip && (
-                        <div className="relative inline-block">
-                          <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
-                          <div className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-normal w-40 leading-relaxed text-left shadow-lg max-w-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            {col.tip}
-                            <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-gray-800 rotate-45"></div>
-                          </div>
-                        </div>
+                        <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
                       )}
-                    </div>
+                    </FieldTooltip>
                   </th>
                 ))}
               </tr>
@@ -290,14 +355,16 @@ const StationBusOperation = () => {
                         {isEditable ? (
                           <InlineEditableCell
                             value={value}
-                            displayValue={formatNumber(value, 0)}
+                            displayValue={['totalBusCount', 'maxChargingCapacity', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'].includes(col.key) ? formatNumber(value, 0) : formatNumber(value)}
                             placeholder="待填写"
                             inputType="number"
                             numeric
                             onSave={(nextValue) => saveCellValue(row.code, col.key, nextValue)}
                           />
                         ) : (
-                          <span>{typeof value === 'number' ? formatNumber(value) : value}</span>
+                          <span>{typeof value === 'number'
+                            ? formatNumber(value, ['totalBusCount', 'maxChargingCapacity', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'].includes(col.key) ? 0 : 2)
+                            : value}</span>
                         )}
                       </td>
                     )
@@ -310,7 +377,7 @@ const StationBusOperation = () => {
       </div>
 
       {/* ========== Excel导入弹窗 ========== */}
-      <Modal isOpen={importModalOpen} onClose={() => { setImportModalOpen(false); setImportFile(null) }} title="Excel批量导入">
+      <Modal isOpen={importModalOpen} onClose={() => { setImportModalOpen(false); setImportFile(null); setImportMessage('') }} title="CSV批量导入">
         <div className="space-y-4">
           {/* 月份选择（强制） */}
           <div>
@@ -337,8 +404,8 @@ const StationBusOperation = () => {
               <p className="text-sm text-gray-500 mb-2">拖拽文件到此处，或点击上传</p>
               <input
                 type="file"
-                accept=".xlsx,.xls,.csv"
-                onChange={(e) => setImportFile(e.target.files[0])}
+                accept=".csv"
+                onChange={(e) => handleImportFile(e.target.files[0])}
                 className="hidden"
                 id="bus-op-import-file"
               />
@@ -349,20 +416,21 @@ const StationBusOperation = () => {
                 选择文件
               </label>
               {importFile && (
-                <p className="text-sm text-primary mt-2">已选择：{importFile.name}</p>
+                <p className="text-sm text-primary mt-2">已导入：{importFile.name}</p>
               )}
             </div>
           </div>
 
           {/* 导入说明 */}
           <div className="bg-blue-50 p-3 rounded text-sm text-blue-800">
-            <p className="text-sm text-gray-500 mb-2">拖拽文件到此处，或点击上传</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
-              <li>文件格式：.xlsx, .xls, .csv</li>
-              <li>必须包含列：站点编码、总车台数、计划挪车车台数</li>
+              <li>文件格式：.csv（首行表头）</li>
+              <li>必须包含列：站点编码、夜停车台数、计划挪车车台数</li>
+              <li>可选列：最大充电产能、充电车台数、实际充电车台数(平台VIN)、总公交充电量(kWh)、单车日均充电量(kWh)</li>
               <li>站点编码用于匹配数据</li>
               <li>导入数据将绑定所选统计自然月存档</li>
             </ul>
+            {importMessage && <p className="mt-2 text-xs font-medium text-blue-700">{importMessage}</p>}
           </div>
         </div>
       </Modal>
@@ -379,11 +447,11 @@ const StationBusOperation = () => {
             </div>
           </div>
 
-          {/* 可编辑字�?*/}
+          {/* 可编辑字段*/}
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                总车台数
+                夜停车台数
               </label>
               <input
                 type="number"
@@ -395,7 +463,19 @@ const StationBusOperation = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                计划挪车车台�?
+                最大充电产能(台)
+              </label>
+              <input
+                type="number"
+                value={manualForm.maxChargingCapacity}
+                onChange={(e) => setManualForm(prev => ({ ...prev, maxChargingCapacity: e.target.value }))}
+                placeholder="请输入"
+                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                计划挪车车台数
               </label>
               <input
                 type="number"
