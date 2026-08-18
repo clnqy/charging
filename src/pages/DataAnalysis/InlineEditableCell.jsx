@@ -67,7 +67,7 @@ const InlineEditableCell = ({
     <span
       onClick={startEdit}
       className={`cursor-text text-blue-600 hover:underline ${className}`}
-      title="鐐瑰嚮缂栬緫锛孍nter鎻愪氦锛孍sc鍙栨秷"
+      title=""
     >
       {value === null || value === undefined || value === '' ? (
         <span className="text-gray-400 italic">{placeholder}</span>

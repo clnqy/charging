@@ -1,5 +1,5 @@
-import React, { useMemo, useRef, useState } from 'react'
-import { CheckSquare, Edit, Plus, Power, RefreshCw, Search, Trash2, XCircle } from 'lucide-react'
+﻿import React, { useMemo, useRef, useState } from 'react'
+import { CheckSquare, ChevronDown, ChevronRight, Edit, Plus, Power, Search, Trash2, XCircle } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 
@@ -7,6 +7,13 @@ const SETTLEMENT_TYPES = {
   ENERGY: '按电量',
   RATIO: '按比例',
 }
+
+const PERIODS = [
+  ['sharp', '尖'],
+  ['peak', '峰'],
+  ['flat', '平'],
+  ['valley', '谷'],
+]
 
 const CUSTOMERS = [
   { customerNo: 'BUS-C001', customerName: '重庆公交集团' },
@@ -16,11 +23,25 @@ const CUSTOMERS = [
   { customerNo: 'EXT-C003', customerName: '园区物流车队' },
 ]
 
+const STATION_OPTIONS = [
+  { code: 'ST001', name: '中心广场充电站' },
+  { code: 'ST002', name: '高新园区充电站' },
+  { code: 'ST003', name: '火车站充电站' },
+  { code: 'ST004', name: '体育馆充电站' },
+  { code: 'ST005', name: '机场充电站' },
+  { code: 'ST006', name: '大学城充电站' },
+  { code: 'ST007', name: '工业园充电站' },
+  { code: 'ST008', name: '物流中心充电站' },
+  { code: 'ST009', name: '医院充电站' },
+  { code: 'ST010', name: '商业中心充电站' },
+]
+
 const columns = [
   { key: 'customerNo', title: '客户编号', width: 140 },
   { key: 'customerName', title: '客户名称', width: 180 },
   { key: 'settlementType', title: '结算类型', width: 120 },
-  { key: 'ruleDetail', title: '结算规则详情', width: 360 },
+  { key: 'stationSummary', title: '结算充电站', width: 180 },
+  { key: 'ruleDetail', title: '结算规则详情', width: 460 },
   { key: 'startDate', title: '生效开始日期', width: 140 },
   { key: 'endDate', title: '生效结束日期', width: 140 },
   { key: 'status', title: '规则状态', width: 110 },
@@ -32,18 +53,35 @@ const columns = [
 const emptyPrices = { sharp: '', peak: '', flat: '', valley: '' }
 const emptyRatios = { electricity: '', service: '' }
 
+const emptyForm = {
+  id: null,
+  customerNo: '',
+  customerName: '',
+  settlementStations: [],
+  settlementType: SETTLEMENT_TYPES.ENERGY,
+  startDate: '',
+  endDate: '',
+  longTerm: false,
+  status: '启用',
+  electricityPrices: { ...emptyPrices },
+  servicePrices: { ...emptyPrices },
+  externalRatios: { ...emptyRatios },
+}
+
 const initialRules = [
   {
     id: 1,
     customerNo: 'BUS-C001',
     customerName: '重庆公交集团',
+    settlementStations: ['ST001', 'ST002', 'ST003'],
     settlementType: SETTLEMENT_TYPES.ENERGY,
     startDate: '2026-01-01',
     endDate: '长期有效',
     status: '启用',
     creator: '管理员',
     createdAt: '2026-08-01 09:20:00',
-    busPrices: { sharp: '0.82', peak: '0.76', flat: '0.61', valley: '0.38' },
+    electricityPrices: { sharp: '0.82', peak: '0.76', flat: '0.61', valley: '0.38' },
+    servicePrices: { sharp: '0.12', peak: '0.10', flat: '0.08', valley: '0.05' },
     externalRatios: { ...emptyRatios },
     referencedOrderCount: 12,
   },
@@ -51,13 +89,15 @@ const initialRules = [
     id: 2,
     customerNo: 'EXT-C001',
     customerName: '两江大客户',
+    settlementStations: ['ST004', 'ST005'],
     settlementType: SETTLEMENT_TYPES.RATIO,
     startDate: '2026-03-01',
     endDate: '2026-12-31',
     status: '启用',
     creator: '管理员',
     createdAt: '2026-08-02 10:15:00',
-    busPrices: { ...emptyPrices },
+    electricityPrices: { ...emptyPrices },
+    servicePrices: { ...emptyPrices },
     externalRatios: { electricity: '95.00', service: '80.00' },
     referencedOrderCount: 4,
   },
@@ -65,41 +105,41 @@ const initialRules = [
     id: 3,
     customerNo: 'EXT-C002',
     customerName: '新电途企业客户',
+    settlementStations: ['ST006'],
     settlementType: SETTLEMENT_TYPES.RATIO,
     startDate: '2026-05-01',
     endDate: '2026-10-31',
     status: '停用',
     creator: '运营专员',
     createdAt: '2026-08-03 14:30:00',
-    busPrices: { ...emptyPrices },
+    electricityPrices: { ...emptyPrices },
+    servicePrices: { ...emptyPrices },
     externalRatios: { electricity: '110.00', service: '100.00' },
     referencedOrderCount: 0,
   },
 ]
 
-const emptyForm = {
-  id: null,
-  customerNo: '',
-  customerName: '',
-  settlementType: SETTLEMENT_TYPES.ENERGY,
-  startDate: '',
-  endDate: '',
-  longTerm: false,
-  status: '启用',
-  busPrices: { ...emptyPrices },
-  externalRatios: { ...emptyRatios },
-}
-
 const toNumber = (value) => Number.parseFloat(value)
 const formatTwo = (value) => (value === '' || value === null || value === undefined ? '' : toNumber(value).toFixed(2))
+const getPrices = (rule, key) => ({ ...emptyPrices, ...(rule[key] || (key === 'electricityPrices' ? rule.busPrices : null) || {}) })
+
+const getStationSummary = (stationCodes = []) => {
+  if (!stationCodes.length) return '-'
+  if (stationCodes.length === STATION_OPTIONS.length) return '全部站点'
+  const names = stationCodes.map((code) => STATION_OPTIONS.find((station) => station.code === code)?.name || code)
+  return names.length > 2 ? `${names.slice(0, 2).join('、')} 等 ${names.length} 个站点` : names.join('、')
+}
 
 const getRuleDetail = (rule) => {
   if (rule.settlementType === SETTLEMENT_TYPES.ENERGY) {
-    const p = rule.busPrices
-    return `尖 ${p.sharp} 元/kWh；峰 ${p.peak} 元/kWh；平 ${p.flat} 元/kWh；谷 ${p.valley} 元/kWh`
+    const electricity = getPrices(rule, 'electricityPrices')
+    const service = getPrices(rule, 'servicePrices')
+    const priceText = PERIODS.map(([key, label]) => `${label}${electricity[key] || '-'}`).join('/')
+    const serviceText = PERIODS.map(([key, label]) => `${label}${service[key] || '-'}`).join('/')
+    return `适用 ${rule.settlementStations?.length || 0} 个站点；电价：${priceText}；服务费：${serviceText}`
   }
   const r = rule.externalRatios
-  return `电费比例 ${r.electricity}%；服务费比例 ${r.service}%`
+  return `适用 ${rule.settlementStations?.length || 0} 个站点；电费比例 ${r.electricity}%；服务费比例 ${r.service}%`
 }
 
 const isRangeOverlap = (aStart, aEnd, bStart, bEnd) => {
@@ -121,16 +161,14 @@ export const calculateLargeCustomerSettlement = (order, rule) => {
 
   if (rule.settlementType === SETTLEMENT_TYPES.ENERGY) {
     const power = order.periodPower || {}
-    const prices = rule.busPrices
-    const electricityFee =
-      Number(power.sharp || 0) * Number(prices.sharp || 0) +
-      Number(power.peak || 0) * Number(prices.peak || 0) +
-      Number(power.flat || 0) * Number(prices.flat || 0) +
-      Number(power.valley || 0) * Number(prices.valley || 0)
+    const electricityPrices = getPrices(rule, 'electricityPrices')
+    const servicePrices = getPrices(rule, 'servicePrices')
+    const electricityFee = PERIODS.reduce((sum, [key]) => sum + Number(power[key] || 0) * Number(electricityPrices[key] || 0), 0)
+    const serviceFee = PERIODS.reduce((sum, [key]) => sum + Number(power[key] || 0) * Number(servicePrices[key] || 0), 0)
     return {
       electricityFee: Number(electricityFee.toFixed(2)),
-      serviceFee: 0,
-      totalAmount: Number(electricityFee.toFixed(2)),
+      serviceFee: Number(serviceFee.toFixed(2)),
+      totalAmount: Number((electricityFee + serviceFee).toFixed(2)),
       fallback: false,
     }
   }
@@ -151,6 +189,14 @@ const Cell = ({ value, className = '' }) => (
   </span>
 )
 
+const cloneForm = (rule) => ({
+  ...rule,
+  settlementStations: [...(rule.settlementStations || [])],
+  electricityPrices: getPrices(rule, 'electricityPrices'),
+  servicePrices: getPrices(rule, 'servicePrices'),
+  externalRatios: { ...emptyRatios, ...(rule.externalRatios || {}) },
+})
+
 const LargeCustomerRuleConfig = () => {
   const [rules, setRules] = useState(initialRules)
   const [selectedIds, setSelectedIds] = useState([])
@@ -159,6 +205,8 @@ const LargeCustomerRuleConfig = () => {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
   const [logs, setLogs] = useState([])
+  const [stationTreeOpen, setStationTreeOpen] = useState(false)
+  const [stationDropdownOpen, setStationDropdownOpen] = useState(false)
   const [widths, setWidths] = useState(() => {
     const saved = localStorage.getItem('largeCustomerRuleWidths')
     return saved ? JSON.parse(saved) : Object.fromEntries(columns.map((col) => [col.key, col.width]))
@@ -171,6 +219,7 @@ const LargeCustomerRuleConfig = () => {
   })
 
   const visibleColumns = reportFields.visibleColumns
+  const allStationSelected = form.settlementStations.length === STATION_OPTIONS.length
 
   const addLog = (type, content) => {
     setLogs((prev) => [{ type, content, user: '当前用户', time: new Date().toLocaleString('zh-CN') }, ...prev].slice(0, 6))
@@ -190,7 +239,7 @@ const LargeCustomerRuleConfig = () => {
 
   const validateDecimal = (value, { max = Infinity } = {}) => {
     if (value === '' || value === null || value === undefined) return '必填'
-    if (!/^\d+(\.\d{1,2})?$/.test(String(value))) return '请输入非负数字，最多保留2位小数'
+    if (!/^\d+(\.\d{1,2})?$/.test(String(value))) return '请输入非负数，最多保留 2 位小数'
     const number = toNumber(value)
     if (number < 0) return '不能为负数'
     if (number > max) return `不能超过 ${max}`
@@ -200,6 +249,7 @@ const LargeCustomerRuleConfig = () => {
   const validateForm = () => {
     const nextErrors = {}
     if (!form.customerNo) nextErrors.customerNo = '请选择客户'
+    if (!form.settlementStations.length) nextErrors.settlementStations = '请选择至少一个结算充电站'
     if (!form.settlementType) nextErrors.settlementType = '请选择结算类型'
     if (!form.startDate) nextErrors.startDate = '请选择生效开始日期'
     if (!form.longTerm && !form.endDate) nextErrors.endDate = '请选择生效结束日期'
@@ -207,9 +257,11 @@ const LargeCustomerRuleConfig = () => {
     if (form.startDate && !form.longTerm && form.endDate && form.endDate < form.startDate) nextErrors.endDate = '结束日期不能早于开始日期'
 
     if (form.settlementType === SETTLEMENT_TYPES.ENERGY) {
-      ;['sharp', 'peak', 'flat', 'valley'].forEach((key) => {
-        const message = validateDecimal(form.busPrices[key])
-        if (message) nextErrors[`busPrices.${key}`] = message
+      ;['electricityPrices', 'servicePrices'].forEach((group) => {
+        PERIODS.forEach(([key]) => {
+          const message = validateDecimal(form[group][key])
+          if (message) nextErrors[`${group}.${key}`] = message
+        })
       })
     } else {
       ;['electricity', 'service'].forEach((key) => {
@@ -233,22 +285,26 @@ const LargeCustomerRuleConfig = () => {
   }
 
   const openCreate = () => {
-    setForm({ ...emptyForm, busPrices: { ...emptyPrices }, externalRatios: { ...emptyRatios } })
+    setForm(cloneForm(emptyForm))
     setErrors({})
+    setStationTreeOpen(false)
+    setStationDropdownOpen(false)
     setModal('create')
   }
 
   const openEdit = (rule) => {
     setForm({
-      ...rule,
+      ...cloneForm(rule),
       longTerm: rule.endDate === '长期有效',
       endDate: rule.endDate === '长期有效' ? '' : rule.endDate,
-      busPrices: { ...emptyPrices, ...rule.busPrices },
-      externalRatios: { ...emptyRatios, ...rule.externalRatios },
     })
     setErrors({})
+    setStationTreeOpen(false)
+    setStationDropdownOpen(false)
     setModal('edit')
   }
+
+  const normalizePrices = (prices) => Object.fromEntries(Object.entries(prices).map(([key, value]) => [key, formatTwo(value)]))
 
   const saveRule = () => {
     if (!validateForm()) return
@@ -257,7 +313,10 @@ const LargeCustomerRuleConfig = () => {
       ...form,
       customerName: customer.customerName,
       endDate: form.longTerm ? '长期有效' : form.endDate,
-      busPrices: Object.fromEntries(Object.entries(form.busPrices).map(([key, value]) => [key, formatTwo(value)])),
+      settlementStations: [...form.settlementStations],
+      electricityPrices: normalizePrices(form.electricityPrices),
+      servicePrices: normalizePrices(form.servicePrices),
+      busPrices: normalizePrices(form.electricityPrices),
       externalRatios: Object.fromEntries(Object.entries(form.externalRatios).map(([key, value]) => [key, formatTwo(value)])),
       creator: form.creator || '当前用户',
       createdAt: form.createdAt || new Date().toLocaleString('zh-CN'),
@@ -272,6 +331,7 @@ const LargeCustomerRuleConfig = () => {
       setRules((prev) => prev.map((rule) => (rule.id === normalized.id ? normalized : rule)))
       addLog('编辑', `编辑 ${normalized.customerName} 结算规则`)
     }
+    setStationDropdownOpen(false)
     setModal(null)
   }
 
@@ -297,7 +357,8 @@ const LargeCustomerRuleConfig = () => {
     setForm((prev) => ({
       ...prev,
       settlementType,
-      busPrices: { ...emptyPrices },
+      electricityPrices: { ...emptyPrices },
+      servicePrices: { ...emptyPrices },
       externalRatios: { ...emptyRatios },
     }))
     setErrors({})
@@ -306,6 +367,22 @@ const LargeCustomerRuleConfig = () => {
   const updateNumber = (path, value) => {
     const [group, key] = path.split('.')
     setForm((prev) => ({ ...prev, [group]: { ...prev[group], [key]: value } }))
+  }
+
+  const toggleStation = (code) => {
+    setForm((prev) => ({
+      ...prev,
+      settlementStations: prev.settlementStations.includes(code)
+        ? prev.settlementStations.filter((item) => item !== code)
+        : [...prev.settlementStations, code],
+    }))
+  }
+
+  const toggleAllStations = () => {
+    setForm((prev) => ({
+      ...prev,
+      settlementStations: allStationSelected ? [] : STATION_OPTIONS.map((station) => station.code),
+    }))
   }
 
   const handleResizeStart = (event, key) => {
@@ -328,6 +405,7 @@ const LargeCustomerRuleConfig = () => {
   }
 
   const renderCell = (rule, col) => {
+    if (col.key === 'stationSummary') return <Cell value={getStationSummary(rule.settlementStations)} />
     if (col.key === 'ruleDetail') return <Cell value={getRuleDetail(rule)} />
     if (col.key === 'status') {
       return <span className={`px-2 py-1 rounded text-xs ${rule.status === '启用' ? 'bg-green-50 text-green-600' : 'bg-gray-100 text-gray-500'}`}>{rule.status}</span>
@@ -345,6 +423,24 @@ const LargeCustomerRuleConfig = () => {
     }
     return <Cell value={rule[col.key]} />
   }
+
+  const renderPriceGroup = (group, title, markerClassName) => (
+    <div>
+      <div className="flex items-center gap-2 mb-2">
+        <span className={`px-2 py-0.5 rounded text-xs font-semibold ${markerClassName}`}>{title}</span>
+        <span className="text-xs text-gray-400">尖 / 峰 / 平 / 谷分别配置</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {PERIODS.map(([key, label]) => (
+          <div key={key}>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{label}时段（元/kWh）<span className="text-red-500">*</span></label>
+            <input type="number" min="0" step="0.01" value={form[group][key]} onChange={(event) => updateNumber(`${group}.${key}`, event.target.value)} className={`w-full px-3 py-2 border rounded text-sm focus:outline-none focus:border-primary ${errors[`${group}.${key}`] ? 'border-red-400 bg-red-50' : 'border-gray-200'}`} />
+            {errors[`${group}.${key}`] && <p className="text-xs text-red-500 mt-1">{errors[`${group}.${key}`]}</p>}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 
   return (
     <div className="page-container min-w-0 overflow-hidden">
@@ -369,6 +465,7 @@ const LargeCustomerRuleConfig = () => {
             <option value="启用">启用</option>
             <option value="停用">停用</option>
           </select>
+          <button onClick={() => addLog('搜索', '搜索大客户结算规则列表')} className="btn-primary text-sm flex items-center gap-1"><Search className="w-4 h-4" />搜索</button>
           <button onClick={() => setFilters({ keyword: '', settlementType: '', status: '' })} className="btn-secondary text-sm">重置</button>
         </div>
         <div className="flex items-center justify-between" style={{ height: '48%' }}>
@@ -378,7 +475,6 @@ const LargeCustomerRuleConfig = () => {
             <button onClick={() => setRuleStatus(selectedIds, '停用')} className="btn-secondary text-sm flex items-center gap-1"><XCircle className="w-4 h-4" />批量停用</button>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={() => addLog('刷新', '刷新大客户结算规则列表')} className="btn-secondary text-sm flex items-center gap-1"><RefreshCw className="w-4 h-4" />刷新</button>
             <ReportFieldControls fields={reportFields} onExport={(keys) => addLog('导出', `导出 ${keys.length} 个字段`)} />
           </div>
         </div>
@@ -441,6 +537,55 @@ const LargeCustomerRuleConfig = () => {
                 </select>
                 {errors.customerNo && <p className="text-xs text-red-500 mt-1">{errors.customerNo}</p>}
               </div>
+              <div className="col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">结算充电站<span className="text-red-500">*</span></label>
+                  <button type="button" onClick={toggleAllStations} className="text-xs text-primary hover:underline">{allStationSelected ? '取消全选' : '全选'}</button>
+                </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setStationDropdownOpen((open) => !open)}
+                    className={`w-full px-3 py-2 border rounded text-sm bg-white focus:outline-none focus:border-primary flex items-center justify-between gap-2 ${errors.settlementStations ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                  >
+                    <span className={`truncate ${form.settlementStations.length ? 'text-gray-700' : 'text-gray-400'}`}>
+                      {form.settlementStations.length ? `已选择 ${form.settlementStations.length} 个站点：${getStationSummary(form.settlementStations)}` : '请选择结算充电站'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${stationDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {stationDropdownOpen && (
+                    <div className="absolute z-40 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-64 overflow-auto p-2">
+                      <div className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded">
+                        <button
+                          type="button"
+                          onClick={() => setStationTreeOpen((open) => !open)}
+                          className="text-gray-500 hover:text-primary"
+                          title={stationTreeOpen ? '收起' : '展开'}
+                        >
+                          {stationTreeOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </button>
+                        <label className="flex items-center gap-2 text-sm text-gray-700 flex-1 cursor-pointer">
+                          <input type="checkbox" checked={allStationSelected} onChange={toggleAllStations} />
+                          <span className="font-medium">全部充电站</span>
+                          <span className="text-xs text-gray-400">({STATION_OPTIONS.length})</span>
+                        </label>
+                      </div>
+                      {stationTreeOpen && (
+                        <div className="ml-7 mt-1 space-y-1">
+                          {STATION_OPTIONS.map((station) => (
+                            <label key={station.code} className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 rounded cursor-pointer">
+                              <input type="checkbox" checked={form.settlementStations.includes(station.code)} onChange={() => toggleStation(station.code)} />
+                              <span className="truncate" title={`${station.name}（${station.code}）`}>{station.name}</span>
+                              <span className="text-xs text-gray-400 flex-shrink-0">{station.code}</span>
+                            </label>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {errors.settlementStations && <p className="text-xs text-red-500 mt-1">{errors.settlementStations}</p>}
+              </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">结算类型<span className="text-red-500">*</span></label>
                 <div className="flex gap-4 h-9 items-center">
@@ -482,19 +627,9 @@ const LargeCustomerRuleConfig = () => {
           <section>
             <h4 className="text-sm font-semibold text-gray-800 mb-3 pb-1 border-b">结算计价配置</h4>
             {form.settlementType === SETTLEMENT_TYPES.ENERGY ? (
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  ['sharp', '尖时段结算单价（元/kWh）'],
-                  ['peak', '峰时段结算单价（元/kWh）'],
-                  ['flat', '平时段结算单价（元/kWh）'],
-                  ['valley', '谷时段结算单价（元/kWh）'],
-                ].map(([key, label]) => (
-                  <div key={key}>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">{label}<span className="text-red-500">*</span></label>
-                    <input type="number" min="0" step="0.01" value={form.busPrices[key]} onChange={(event) => updateNumber(`busPrices.${key}`, event.target.value)} className={`w-full px-3 py-2 border rounded text-sm focus:outline-none focus:border-primary ${errors[`busPrices.${key}`] ? 'border-red-400 bg-red-50' : 'border-gray-200'}`} />
-                    {errors[`busPrices.${key}`] && <p className="text-xs text-red-500 mt-1">{errors[`busPrices.${key}`]}</p>}
-                  </div>
-                ))}
+              <div className="space-y-4">
+                {renderPriceGroup('electricityPrices', '电价', 'bg-blue-50 text-blue-700 border border-blue-100')}
+                {renderPriceGroup('servicePrices', '服务费', 'bg-emerald-50 text-emerald-700 border border-emerald-100')}
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">

@@ -3,8 +3,9 @@ import { FileSpreadsheet, FileText, AlertCircle, Upload, RefreshCw, Clock } from
 import Modal from '../../components/Modal'
 import InlineEditableCell from './InlineEditableCell'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
+import FieldTooltip from '../../components/FieldTooltip'
 
-// 基础站点数据（不含可研收入和目标收入�?
+// 基础站点数据（不含可研收入和目标收入）
 const baseStationData = [
   { code: 'ST001', name: '中心广场充电站', cooperationMode: '自营站' },
   { code: 'ST002', name: '高新园区充电站', cooperationMode: '驿满慢充' },
@@ -219,14 +220,14 @@ const StationSummary = () => {
   const tableColumns = [
     { key: 'code', title: '站点编码', width: '8%' },
     { key: 'name', title: '站点', width: '10%' },
-    { key: 'cooperationMode', title: '合作模式', width: '9%', note: '数据来源于站点基础表' },
-    { key: 'plannedIncome', title: '可研收入', width: '9%' },
-    { key: 'targetIncome', title: '目标收入', width: '9%' },
-    { key: 'totalIncome', title: '完成总收入', width: '9%' },
-    { key: 'busIncome', title: '其中公交收入', width: '9%' },
-    { key: 'socialIncome', title: '其中社会收入', width: '9%' },
-    { key: 'totalCost', title: '完成总成本', width: '9%' },
-    { key: 'grossProfit', title: '充电毛利', width: '9%' },
+    { key: 'cooperationMode', title: '经营模式', width: '9%', note: '数据来源于站点基础表' },
+    { key: 'plannedIncome', title: '可研收入（元）', width: '9%' },
+    { key: 'targetIncome', title: '目标收入（元）', width: '9%' },
+    { key: 'totalIncome', title: '完成总收入（元）', width: '9%' },
+    { key: 'busIncome', title: '其中公交收入（元）', width: '9%' },
+    { key: 'socialIncome', title: '其中社会收入（元）', width: '9%' },
+    { key: 'totalCost', title: '完成总成本（元）', width: '9%' },
+    { key: 'grossProfit', title: '充电毛利（元）', width: '9%' },
   ]
   const reportFields = useReportFields({
     storageKey: 'data-analysis:station-summary',
@@ -255,7 +256,7 @@ const StationSummary = () => {
 
   return (
     <div className="page-container h-full flex flex-col">
-      {/* 顶部筛�?& 操作区（占主内容高度12%�?*/}
+      {/* 顶部筛选 & 操作区（占主内容高度12%）*/}
       <div 
         className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between"
         style={{ height: '12%', minHeight: '80px' }}
@@ -296,7 +297,7 @@ const StationSummary = () => {
         </div>
       </div>
 
-      {/* 统计表标题区�?*/}
+      {/* 统计表标题区*/}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileText className="w-5 h-5 text-primary" />
@@ -322,7 +323,7 @@ const StationSummary = () => {
         </div>
       </div>
 
-      {/* 主数据表格区域（占主内容剩余高度85%�?*/}
+      {/* 主数据表格区域（占主内容剩余高度85%）*/}
       <div 
         className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1"
         style={{ height: '85%' }}
@@ -337,18 +338,12 @@ const StationSummary = () => {
                     className={`px-3 py-3 text-left text-xs font-bold text-gray-700 border-b border-gray-200 whitespace-nowrap `}
                     style={{ width: col.width }}
                   >
-                    <div className="flex items-center gap-1">
+                    <FieldTooltip content={col.note} className="flex">
                       {col.title}
                       {col.note && (
-                        <div className="group relative inline-block">
-                          <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
-                          <div className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-normal w-40 leading-relaxed text-left shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            {col.note}
-                            <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-gray-800 rotate-45"></div>
-                          </div>
-                        </div>
+                        <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
                       )}
-                    </div>
+                    </FieldTooltip>
                   </th>
                 ))}
               </tr>
@@ -407,7 +402,7 @@ const StationSummary = () => {
         </div>
       </div>
 
-      {/* 导入可研与目标收入弹�?*/}
+      {/* 导入可研与目标收入弹窗*/}
       <Modal 
         isOpen={importModalOpen} 
         onClose={() => { setImportModalOpen(false); setShowPreview(false); setImportFile(null); setImportPreview([]); setImportMonth('') }}

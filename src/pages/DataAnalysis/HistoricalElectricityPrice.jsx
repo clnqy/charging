@@ -14,22 +14,22 @@ const PERIOD_STYLES = {
   谷: { color: '#1890ff', bg: 'bg-blue-500', text: 'text-blue-500', label: '谷' },
 }
 
-// ==================== ��� ====================
+// ==================== 页面组件 ===================
 const HistoricalElectricityPrice = () => {
   // 年份管理
   const [allYears, setAllYears] = useState([2026, 2025, 2024])
-  // 图表显示的年�?筛选用)
+  // 图表显示的年份（筛选用）
   const [chartYears, setChartYears] = useState([2026, 2025, 2024])
-  // 顶部年份选择(展示�?支持多�?
+  // 顶部年份选择（展示用，支持多选）
   const [selectedYears, setSelectedYears] = useState([2026, 2025, 2024])
-  // 图表显示的时�?
+  // 图表显示的时段
   const [chartPeriods, setChartPeriods] = useState(['尖', '峰', '平', '谷'])
   
-  // 表格分页(�?年一�?
+  // 表格分页（每页5年）
   const ITEMS_PER_PAGE = 5
   const [currentPage, setCurrentPage] = useState(1)
   
-  // 电价数据 - 新结�? priceData[year][period][month]
+  // 电价数据 - 新结构 priceData[year][period][month]
   const [priceData, setPriceData] = useState(() => {
     const initial = {}
     allYears.forEach(year => {
@@ -44,7 +44,7 @@ const HistoricalElectricityPrice = () => {
     return initial
   })
   
-  // 编辑状�?
+  // 编辑状态
   const [editingCell, setEditingCell] = useState(null)
   const [editValue, setEditValue] = useState('')
   
@@ -87,7 +87,7 @@ const HistoricalElectricityPrice = () => {
     setTimeout(() => setNotification(null), 3000)
   }
   
-  // 下拉框多选状�?
+  // 下拉框多选状态
   const [showYearDropdown, setShowYearDropdown] = useState(false)
   
   // 处理年度选项切换
@@ -146,7 +146,7 @@ const HistoricalElectricityPrice = () => {
     const newYear = parseInt(newYearInput)
     setAllYears(prev => [...prev, newYear].sort((a, b) => b - a))
     
-    // 新数据结�? newYear -> period -> month -> value
+    // 新数据结构：newYear -> period -> month -> value
     setPriceData(prev => {
       const newData = { ...prev }
       newData[newYear] = {}
@@ -167,13 +167,13 @@ const HistoricalElectricityPrice = () => {
     showNotification('success', `已添加年度 ${newYear}`)
   }
   
-  // 快捷筛选操�?
+  // 快捷筛选操作
   const selectAllYears = () => { setChartYears([...allYears].sort((a, b) => b - a)); setSelectedYears([...allYears].sort((a, b) => b - a)) }
   const clearAllYears = () => { setChartYears([]); setSelectedYears([]) }
   const selectAllPeriods = () => setChartPeriods([...TIME_PERIODS])
   const clearAllPeriods = () => setChartPeriods([])
   
-  // 切换选择(同时影响图表和顶部列�?
+  // 切换选择(同时影响图表和顶部列表
   const toggleYear = (year) => {
     let newChartYears
     let newSelectedYears
@@ -202,7 +202,7 @@ const HistoricalElectricityPrice = () => {
     }
   }
   
-  // 获取所有可编辑的单元格顺序(按年度→时段→月�?
+  // 获取所有可编辑的单元格顺序(按年度→时段→月份）
   const editableCellsOrder = useMemo(() => {
     const order = []
     selectedYears.filter(year => chartYears.includes(year)).forEach(year => {
@@ -215,11 +215,11 @@ const HistoricalElectricityPrice = () => {
     return order
   }, [selectedYears, chartYears])
   
-  // 获取下一个单元格(纵向跳转:同一年份、下一个时�?
+  // 获取下一个单元格(纵向跳转:同一年份、下一个时段）
   const getNextCellVertical = (currentYear, currentPeriod, currentMonth) => {
     const periodIndex = TIME_PERIODS.indexOf(currentPeriod)
     
-    // 如果当前不是最后一个时�?则跳到下一个时段的同月�?
+    // 如果当前不是最后一个时段）则跳到下一个时段的同月份）
     if (periodIndex < TIME_PERIODS.length - 1) {
       return {
         year: currentYear,
@@ -228,16 +228,16 @@ const HistoricalElectricityPrice = () => {
       }
     }
     
-    // 如果当前是最后一个时�?检查是否是最后一个年�?
+    // 如果当前是最后一个时段）检查是否是最后一个年份
     const yearIndex = selectedYears.indexOf(currentYear)
     const visibleYears = selectedYears.filter(y => chartYears.includes(y))
     
     if (yearIndex < visibleYears.length - 1 && currentMonth === 12) {
-      // 如果�?2�?跳到下一年度的第一个时段的同月�?
+      // 如果是12月，跳到下一年度的第一个时段的同月份
       const nextYear = visibleYears[yearIndex + 1]
       return {
         year: nextYear,
-        period: TIME_PERIODS[0], // �?
+        period: TIME_PERIODS[0], // 尖
         month: currentMonth
       }
     }
@@ -249,7 +249,7 @@ const HistoricalElectricityPrice = () => {
   const getPrevCellVertical = (currentYear, currentPeriod, currentMonth) => {
     const periodIndex = TIME_PERIODS.indexOf(currentPeriod)
     
-    // 如果当前不是第一个时�?则跳到上一个时段的同月�?
+    // 如果当前不是第一个时段）则跳到上一个时段的同月份）
     if (periodIndex > 0) {
       return {
         year: currentYear,
@@ -258,16 +258,16 @@ const HistoricalElectricityPrice = () => {
       }
     }
     
-    // 如果当前是第一个时�?检查是否是第一个年�?
+    // 如果当前是第一个时段）检查是否是第一个年份
     const yearIndex = selectedYears.indexOf(currentYear)
     const visibleYears = selectedYears.filter(y => chartYears.includes(y))
     
     if (yearIndex > 0 && currentMonth === 1) {
-      // 如果�?�?跳到上一年度的最后一个时段的同月�?
+      // 如果是1月，跳到上一年度的最后一个时段的同月份
       const prevYear = visibleYears[yearIndex - 1]
       return {
         year: prevYear,
-        period: TIME_PERIODS[TIME_PERIODS.length - 1], // �?
+        period: TIME_PERIODS[TIME_PERIODS.length - 1], // 尖
         month: currentMonth
       }
     }
@@ -275,7 +275,7 @@ const HistoricalElectricityPrice = () => {
     return null // 第一个单元格
   }
   
-  // 单元格编�?- 新结�?
+  // 单元格编辑 - 新结构
   const startEdit = (year, period, month) => {
     setEditingCell({ year, period, month })
     const currentVal = priceData[year]?.[period]?.[month] || ''
@@ -322,7 +322,7 @@ const HistoricalElectricityPrice = () => {
     }
     
     if (moveToNext) {
-      // 纵向移动到下一个单元格(同一年份、下一个时�?
+      // 纵向移动到下一个单元格(同一年份、下一个时段）
       const nextCell = getNextCellVertical(year, period, month)
       if (nextCell) {
         startEdit(nextCell.year, nextCell.period, nextCell.month)
@@ -338,7 +338,7 @@ const HistoricalElectricityPrice = () => {
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
-      saveEdit(true) // Enter�?保存并纵向跳转到下一个单元格
+      saveEdit(true) // Enter：保存并纵向跳转到下一个单元格
     } else if (e.key === 'Escape') {
       e.preventDefault()
       stopEdit()
@@ -362,7 +362,7 @@ const HistoricalElectricityPrice = () => {
     }
   }
   
-  // 计算总页�?
+  // 计算总页数
   const totalPages = Math.ceil(allYears.length / ITEMS_PER_PAGE) || 1
   
   // 当前页的年份
@@ -376,7 +376,7 @@ const HistoricalElectricityPrice = () => {
     [selectedYears, chartYears]
   )
   
-  // 生成图表数据(使用新数据结�? priceData[year][period][month])
+  // 生成图表数据（使用新数据结构：priceData[year][period][month]）
   const chartData = useMemo(() => {
     return MONTHS.map(m => {
       const point = { month: m.label }
@@ -396,7 +396,7 @@ const HistoricalElectricityPrice = () => {
   const totalLines = chartYears.length * chartPeriods.length
   const strokeWidth = totalLines > 8 ? 1.5 : totalLines > 4 ? 2 : 2.5
   
-  // 年份颜色深浅（同色系�?
+  // 年份颜色深浅（同色系）
   const getYearColor = (year, period) => {
     const baseColor = PERIOD_STYLES[period]?.color || '#1890ff'
     const yearIndex = allYears.indexOf(year)
@@ -409,7 +409,7 @@ const HistoricalElectricityPrice = () => {
   const handleExport = () => showNotification('success', '导出成功!')
   const handleImport = () => showNotification('success', '导入成功!')
   
-  // 获取当前可见的图�?
+  // 获取当前可见的图例
   const visibleLegends = useMemo(() => {
     const legends = []
     currentPageYears.forEach(year => {
@@ -479,7 +479,7 @@ const HistoricalElectricityPrice = () => {
         </div>
       )}
 
-      {/* ========== 顶部操作栏（12%高度�?========= */}
+      {/* ========== 顶部操作栏（12%高度）========= */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between flex-shrink-0" style={{ height: '12%' }}>
         <div className="flex items-center gap-3 flex-wrap">
           <button onClick={handleImport} className="btn-primary text-sm flex items-center gap-1">
@@ -497,14 +497,14 @@ const HistoricalElectricityPrice = () => {
         </div>
       </div>
 
-      {/* ========== 顶部年份选择区（5%高度�?========= */}
+      {/* ========== 顶部年份选择区（5%高度）========= */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex-shrink-0 relative" style={{ height: '5%' }}>
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-gray-700 whitespace-nowrap">显示年度:</span>
           
-          {/* 下拉框多�?*/}
+          {/* 下拉框多选*/}
           <div className="relative flex-1">
-            {/* 触发�?*/}
+            {/* 触发器*/}
             <button
               onClick={() => setShowYearDropdown(!showYearDropdown)}
               className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-left text-sm flex items-center justify-between hover:border-primary transition-colors"
@@ -533,7 +533,7 @@ const HistoricalElectricityPrice = () => {
             {/* 下拉内容 */}
             {showYearDropdown && (
               <>
-                {/* 遮罩�?*/}
+                {/* 遮罩层*/}
                 <div 
                   className="fixed inset-0 z-[9998]" 
                   onClick={() => setShowYearDropdown(false)}
@@ -570,17 +570,17 @@ const HistoricalElectricityPrice = () => {
         </div>
       </div>
 
-      {/* ========== 标题区（5%高度�?========= */}
+      {/* ========== 标题区（5%高度）========= */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between flex-shrink-0" style={{ height: '5%' }}>
         <h2 className="text-lg font-bold text-gray-800">历年供电电价台账</h2>
         <span className="text-sm text-gray-500">数据最后更新：{new Date().toLocaleString('zh-CN')}</span>
       </div>
 
-      {/* ========== 台账表格区域�?2%高度�?========= */}
+      {/* ========== 台账表格区域（32%高度）========= */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-shrink-0 mb-3" style={{ height: '32%' }}>
         <div className="overflow-x-auto overflow-y-auto h-full">
           <table className="text-sm border-collapse">
-            {/* 第一�?年度+时段 + 1-12�?*/}
+            {/* 第一列：年度+时段 + 1-12月*/}
             <thead>
               <tr>
                 <th 
@@ -658,12 +658,12 @@ const HistoricalElectricityPrice = () => {
         </div>
       </div>
 
-      {/* ========== 电价趋势图表区域�?1%高度�?========= */}
+      {/* ========== 电价趋势图表区域（剩余高度）========= */}
       <div className="bg-white rounded-lg shadow-sm flex-1 flex flex-col min-h-0">
-        {/* 维度筛选控�?*/}
+        {/* 维度筛选控件*/}
         <div className="p-3 border-b border-gray-200 flex-shrink-0">
           <div className="space-y-2">
-            {/* 年度选择�?*/}
+            {/* 年度选择区*/}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">年度:</span>
               <div className="flex items-center gap-1 flex-wrap">
@@ -690,7 +690,7 @@ const HistoricalElectricityPrice = () => {
               </div>
             </div>
             
-            {/* 时段选择�?*/}
+            {/* 时段选择区*/}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">时段:</span>
               <div className="flex items-center gap-1 flex-wrap">
@@ -723,7 +723,7 @@ const HistoricalElectricityPrice = () => {
           </div>
         </div>
 
-        {/* 折线�?*/}
+        {/* 折线图*/}
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" />

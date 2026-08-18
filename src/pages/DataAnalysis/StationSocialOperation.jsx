@@ -3,6 +3,7 @@ import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3 } from 'l
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import InlineEditableCell from './InlineEditableCell'
+import FieldTooltip from '../../components/FieldTooltip'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
@@ -65,7 +66,7 @@ const generateMonthData = (month) => {
     const flatRatio = totalPower > 0 ? ((flatPower / totalPower) * 100).toFixed(2) : '0.00'
     const valleyRatio = totalPower > 0 ? ((valleyPower / totalPower) * 100).toFixed(2) : '0.00'
 
-    // 单枪日均充电�?
+    // 单枪日均充电量
     const dailyPerGun = gunCount && gunCount > 0 ? (socialCharging / gunCount / 31).toFixed(2) : '0.00'
     // 月设备利用率
     const utilizationRate = getRandomFloat(20, 90, 2)
@@ -102,7 +103,7 @@ const generateMonthData = (month) => {
   })
 }
 
-// ==================== 列定�?====================
+// ==================== 列定义====================
 const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-48' },
@@ -133,7 +134,7 @@ const columns = [
   { key: 'flatPower', title: '平电量', width: 'w-20' },
   { key: 'valleyPower', title: '谷电量', width: 'w-20' },
 ]
-// ==================== 格式化函�?====================
+// ==================== 格式化函数====================
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined) return '-'
   if (typeof value === 'string') return value
@@ -237,7 +238,7 @@ const StationSocialOperation = () => {
 
   return (
     <div className="page-container h-full flex flex-col min-w-0 overflow-hidden">
-      {/* ========== 顶部操作筛选栏（占主内容高�?2%�?========= */}
+      {/* ========== 顶部操作筛选栏（占主内容高度12%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between"
         style={{ height: '12%', minHeight: '80px' }}
@@ -257,7 +258,7 @@ const StationSocialOperation = () => {
             </select>
           </div>
 
-          {/* 状态提�?*/}
+          {/* 状态提示*/}
           <div className="flex items-center gap-1 text-xs text-primary bg-blue-50 px-3 py-1.5 rounded-full">
             <Clock className="w-3 h-3" />
             <span>每月自动生成</span>
@@ -287,7 +288,7 @@ const StationSocialOperation = () => {
         </div>
       </div>
 
-      {/* ========== 页面标题�?========== */}
+      {/* ========== 页面标题========== */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5 text-primary" />
@@ -296,7 +297,7 @@ const StationSocialOperation = () => {
         <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
       </div>
 
-      {/* ========== 主表格区域（占剩余主内容高度86%�?========= */}
+      {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1"
         style={{ height: '86%' }}
@@ -310,18 +311,12 @@ const StationSocialOperation = () => {
                     key={col.key}
                     className="px-2 py-2 border-b border-r border-gray-200 text-left text-sm font-medium text-gray-500 whitespace-nowrap min-w-[160px]"
                   >
-                    <div className="group relative inline-flex items-center gap-1">
+                    <FieldTooltip content={col.tip}>
                       {col.title}
                       {col.tip && (
-                        <div className="relative inline-block">
-                          <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
-                          <div className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-normal w-40 leading-relaxed text-left shadow-lg max-w-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            {col.tip}
-                            <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-gray-800 rotate-45"></div>
-                          </div>
-                        </div>
+                        <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
                       )}
-                    </div>
+                    </FieldTooltip>
                   </th>
                 ))}
               </tr>
@@ -437,7 +432,7 @@ const StationSocialOperation = () => {
             </div>
           </div>
 
-          {/* 可编辑字�?*/}
+          {/* 可编辑字段*/}
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -477,7 +472,7 @@ const StationSocialOperation = () => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                夜间开放枪数量(0-6�?
+                夜间开放枪数量(0-6点)
               </label>
               <input
                 type="number"

@@ -1,15 +1,16 @@
 ﻿import React, { useState, useMemo, useCallback } from 'react'
 import { Info, Calendar, Car } from 'lucide-react'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
+import FieldTooltip from '../../components/FieldTooltip'
 
 // ==================== 模拟公交线路数据 ====================
 const generateBusLineData = (startDate, endDate) => {
-  // 计算时间段天�?
+  // 计算时间段天数
   const start = new Date(startDate)
   const end = new Date(endDate)
   const daysDiff = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
   
-  // 使用时间戳作为种�?保证数据一致�?
+  // 使用时间戳作为种子，保证数据一致
   const seed = startDate.split('-').reduce((acc, char) => acc + char.charCodeAt(0), 0) + 
                 endDate.split('-').reduce((acc, char) => acc + char.charCodeAt(0), 0)
   const getRandom = (min, max) => {
@@ -18,24 +19,24 @@ const generateBusLineData = (startDate, endDate) => {
   }
 
   const busLines = [
-    '1·', '2·', '3·', '4·', '5·',
-    '10·', '11·', '12·', '15·', '16·',
-    '20·', '21·', '22·', '25·', '26·',
-    '30·', '31·', '32·', '33·', '35·',
+    '1', '2', '3', '4', '5',
+    '10', '11', '12', '15', '16',
+    '20', '21', '22', '25', '26',
+    '30', '31', '32', '33', '35',
   ]
 
   return busLines.map((line) => {
-    // 车台�?该线路运营车辆数
+    // 车台数：该线路运营车辆数
     const vehicles = Math.round(getRandom(8, 30))
     
-    // 线路里程(km) - 按天数比例调�?
+    // 线路里程(km) - 按天数比例调整
     const routeKm = Math.round(getRandom(30000, 120000) * (daysDiff / 30))
     
-    // 平均里程(km/车日) = 线路里程 ÷ 线路总出勤车�?
+    // 平均里程(km/车日) = 线路里程 ÷ 线路总出勤车日
     const workDays = Math.round(daysDiff * getRandom(0.7, 1.0))
     const avgKm = routeKm / (vehicles * workDays)
     
-    // 驿满充电车台�?
+    // 驿满充电车台数
     const chargedVehicles = Math.round(vehicles * getRandom(0.6, 0.95))
     
     // 驿满充电里程(km)
@@ -48,13 +49,13 @@ const generateBusLineData = (startDate, endDate) => {
     // 驿满充电电量(kWh)
     const chargedKwh = Math.round(chargedKm * getRandom(0.6, 1.2))
     
-    // 驿满充电�?kWh/车日)
+    // 驿满充电量(kWh/车日)
     const chargedKwhPerDay = chargedKwh / (chargedVehicles * chargedWorkDays)
     
-    // 每日充电电量(kWh) = 驿满充电电量 ÷ 筛选时段总自然天�?
+    // 每日充电电量(kWh) = 驿满充电电量 ÷ 筛选时段总自然天数
     const dailyKwh = chargedKwh / daysDiff
     
-    // 平均能�?kWh/km) = 驿满充电电量 ÷ 驿满充电里程
+    // 平均能耗(kWh/km) = 驿满充电电量 ÷ 驿满充电里程
     const avgEnergy = chargedKm > 0 ? chargedKwh / chargedKm : 0
 
     return {
@@ -73,31 +74,31 @@ const generateBusLineData = (startDate, endDate) => {
   })
 }
 
-// ==================== 列定�?====================
+// ==================== 列定义====================
 const columns = [
-  { key: 'line', title: '线路', width: 'w-20', frozen: true },
-  { key: 'vehicles', title: '车台数', width: 'w-16' },
-  { key: 'routeKm', title: '线路里程(km)', width: 'w-28' },
-  { key: 'avgKm', title: '平均里程(km/车日)', width: 'w-28' },
-  { key: 'chargedVehicles', title: '驿满充电车台数', width: 'w-28' },
-  { key: 'chargedKm', title: '驿满充电里程(km)', width: 'w-28' },
-  { key: 'chargedAvgKm', title: '驿满充电平均里程(km/车日)', width: 'w-32' },
-  { key: 'chargedKwh', title: '驿满充电电量(kWh)', width: 'w-28' },
-  { key: 'chargedKwhPerDay', title: '驿满充电量(kWh/车日)', width: 'w-32' },
-  { key: 'dailyKwh', title: '每日充电电量(kWh)', width: 'w-28' },
-  { key: 'avgEnergy', title: '平均能耗(kWh/km)', width: 'w-28', highlighted: true },
+  { key: 'line', title: '线路', width: 'w-20', frozen: true, note: '公交线路名称。' },
+  { key: 'vehicles', title: '车台数', width: 'w-16', note: '该线路统计时段内参与运营的车辆数量。' },
+  { key: 'routeKm', title: '线路里程(km)', width: 'w-28', note: '该线路在统计时段内的总运营里程。' },
+  { key: 'avgKm', title: '平均里程(km/车日)', width: 'w-28', note: '线路里程 ÷ 线路总出勤车日。' },
+  { key: 'chargedVehicles', title: '充电车台数', width: 'w-28', note: '统计时段内在驿满站点充电的车辆数量。' },
+  { key: 'chargedKm', title: '充电里程(km)', width: 'w-28', note: '使用充电服务后对应的车辆运营里程。' },
+  { key: 'chargedAvgKm', title: '充电平均里程(km/车日)', width: 'w-32', note: '充电里程 ÷ 充电车辆出勤车日。' },
+  { key: 'chargedKwh', title: '充电电量(kWh)', width: 'w-28', note: '统计时段内该线路在驿满站点的总充电电量。' },
+  { key: 'chargedKwhPerDay', title: '充电量(kWh/车日)', width: 'w-32', note: '充电电量 ÷ 充电车辆出勤车日。' },
+  { key: 'dailyKwh', title: '每日充电电量(kWh)', width: 'w-28', note: '充电电量 ÷ 统计时段自然天数。' },
+  { key: 'avgEnergy', title: '平均能耗(kWh/km)', width: 'w-28', highlighted: true, note: '充电电量 ÷ 充电里程，用于判断线路能耗水平。' },
 ]
 // ==================== 表头悬浮说明 ====================
-const columnTips = Object.fromEntries(columns.map((col) => [col.key, col.title]))
+const columnTips = Object.fromEntries(columns.map((col) => [col.key, col.note || col.title]))
 
-// ==================== 格式化函�?====================
+// ==================== 格式化函数====================
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined || value === '') return '-'
   if (typeof value === 'string') return value
   return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value)
 }
 
-// ==================== 能耗预警颜�?====================
+// ==================== 能耗预警颜色====================
 const getEnergyColor = (avgEnergy) => {
   if (avgEnergy === null || avgEnergy === undefined || avgEnergy === 0) return ''
   if (avgEnergy > 0.9) return 'text-orange-600 font-semibold'
@@ -105,12 +106,12 @@ const getEnergyColor = (avgEnergy) => {
   return ''
 }
 
-// ==================== 数据异常检�?====================
+// ==================== 数据异常检测====================
 const isDataAbnormal = (row) => {
   return row.chargedKm === 0 && row.chargedKwh > 0
 }
 
-// ==================== 获取当月首日和末�?====================
+// ==================== 获取当月首日和末日====================
 const getFirstDayOfMonth = (date) => {
   const d = new Date(date)
   const year = d.getFullYear()
@@ -126,14 +127,14 @@ const getLastDayOfMonth = (date) => {
   return `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 }
 
-// ==================== 格式化日期显�?====================
+// ==================== 格式化日期显示====================
 const formatDateDisplay = (dateStr) => {
   if (!dateStr) return ''
   const d = new Date(dateStr)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// ==================== 计算两个日期之间的天�?====================
+// ==================== 计算两个日期之间的天数====================
 const getDaysBetween = (startDate, endDate) => {
   const start = new Date(startDate)
   const end = new Date(endDate)
@@ -174,7 +175,7 @@ const BusLineEnergy = () => {
     }
   }, [currentData, startDate, endDate])
 
-  // 切换开始日�?
+  // 切换开始日期
   const handleStartDateChange = (date) => {
     if (endDate && date > endDate) {
       alert('开始日期不能晚于结束日期')
@@ -199,7 +200,7 @@ const BusLineEnergy = () => {
 
   return (
     <div className="page-container h-full flex flex-col min-w-0 overflow-hidden">
-      {/* ========== 顶部操作筛选栏（占主内容高�?2%�?========= */}
+      {/* ========== 顶部操作筛选栏（占主内容高度12%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between"
         style={{ height: '12%', minHeight: '80px' }}
@@ -243,7 +244,7 @@ const BusLineEnergy = () => {
         </div>
       </div>
 
-      {/* ========== 页面标题�?========== */}
+      {/* ========== 页面标题========== */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Car className="w-5 h-5 text-primary" />
@@ -254,7 +255,7 @@ const BusLineEnergy = () => {
         </span>
       </div>
 
-      {/* ========== 主表格区域（占剩余主内容高度86%�?========= */}
+      {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1"
         style={{ height: '86%' }}
@@ -272,22 +273,16 @@ const BusLineEnergy = () => {
                     } align-middle`}
                     style={{ minWidth: col.frozen ? '100px' : undefined, zIndex: col.frozen ? 20 : 10 }}
                   >
-                    <div className="group relative inline-flex items-center gap-1" style={{ overflow: 'visible' }}>
+                    <FieldTooltip content={columnTips[col.key]}>
                       {col.title}
-                      <div className="relative inline-block">
-                        <Info className="w-3 h-3 text-gray-400 cursor-help hover:text-gray-600" />
-                        <div className="absolute z-[9999] left-1/2 -translate-x-1/2 top-full mt-1 px-3 py-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-normal w-48 leading-relaxed text-left">
-                          {columnTips[col.key]}
-                          <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-gray-800 rotate-45"></div>
-                        </div>
-                      </div>
-                    </div>
+                      <Info className="w-3 h-3 text-gray-400 cursor-help hover:text-gray-600" />
+                    </FieldTooltip>
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {/* 明细�?*/}
+              {/* 明细行*/}
               {currentData.map((row, index) => {
                 const abnormal = isDataAbnormal(row)
                 

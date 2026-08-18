@@ -3,6 +3,7 @@ import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3 } from 'l
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import InlineEditableCell from './InlineEditableCell'
+import FieldTooltip from '../../components/FieldTooltip'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
@@ -46,7 +47,7 @@ const generateMonthData = (month) => {
     const lastMonthIncome = Math.round(busSubtotal * getRandom(0.85, 0.95))
     const samePeriodLastYear = Math.round(busSubtotal * getRandom(0.75, 0.90))
     
-    // 累计数（当年1月至当前月份累加�?
+    // 累计数（当年1月至当前月份累加）
     const monthNum = parseInt(month.split('-')[1])
     const cumulative = Math.round(busSubtotal * monthNum * getRandom(0.95, 1.05))
     const lastYearCumulative = Math.round(samePeriodLastYear * monthNum * getRandom(0.90, 1.0))
@@ -95,7 +96,7 @@ const columns = [
   { key: 'cumulative', title: '累计收入', width: 'w-16' },
   { key: 'lastYearCumulative', title: '去年累计收入', width: 'w-20' },
 ]
-// ==================== 格式化函�?====================
+// ==================== 格式化函数====================
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined) return '-'
   if (typeof value === 'string') return value
@@ -248,7 +249,7 @@ const StationBusRevenue = () => {
 
   return (
     <div className="page-container h-full flex flex-col min-w-0 overflow-hidden">
-      {/* ========== 顶部操作筛选栏（占主内容高�?2%�?========= */}
+      {/* ========== 顶部操作筛选栏（占主内容高度12%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between"
         style={{ height: '12%', minHeight: '80px' }}
@@ -268,7 +269,7 @@ const StationBusRevenue = () => {
             </select>
           </div>
 
-          {/* 状态提�?*/}
+          {/* 状态提示*/}
           <div className="flex items-center gap-1 text-xs text-primary bg-blue-50 px-3 py-1.5 rounded-full">
             <Clock className="w-3 h-3" />
             <span>每月自动生成</span>
@@ -298,7 +299,7 @@ const StationBusRevenue = () => {
         </div>
       </div>
 
-      {/* ========== 页面标题�?========== */}
+      {/* ========== 页面标题========== */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5 text-primary" />
@@ -307,7 +308,7 @@ const StationBusRevenue = () => {
         <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
       </div>
 
-      {/* ========== 主表格区域（占剩余主内容高度86%�?========= */}
+      {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1"
         style={{ height: '86%' }}
@@ -321,18 +322,12 @@ const StationBusRevenue = () => {
                     key={col.key}
                     className="px-2 py-2 border-b border-r border-gray-200 text-left text-sm font-medium text-gray-500 whitespace-nowrap min-w-[160px]"
                   >
-                    <div className="group relative inline-flex items-center gap-1">
+                    <FieldTooltip content={col.tip}>
                       {col.title}
                       {col.tip && (
-                        <div className="relative inline-block">
-                          <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
-                          <div className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-normal w-40 leading-relaxed text-left shadow-lg max-w-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            {col.tip}
-                            <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-gray-800 rotate-45"></div>
-                          </div>
-                        </div>
+                        <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
                       )}
-                    </div>
+                    </FieldTooltip>
                   </th>
                 ))}
               </tr>
@@ -346,7 +341,7 @@ const StationBusRevenue = () => {
                     const isNull = value === null || value === undefined
                     const numValue = parseFloat(value)
                     
-                    // 高亮规则：奋斗收�?> 目标收入标橙�?
+                    // 高亮规则：奋斗收入 > 目标收入标橙色
                     const isHighLight = col.key === 'struggleIncome' && !isNaN(numValue) && 
                                        parseFloat(row.targetIncome) > 0 && numValue > row.targetIncome
                     
@@ -438,7 +433,7 @@ const StationBusRevenue = () => {
             <p className="text-sm text-gray-500 mb-2">拖拽文件到此处，或点击上传</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>文件格式：.xlsx, .xls, .csv</li>
-              <li>必须包含列：站点编码、可研收�?公交)、目标收入、奋斗收入、公交充电收入等</li>
+              <li>必须包含列：站点编码、可研收入(公交)、目标收入、奋斗收入、公交充电收入等</li>
               <li>站点编码用于匹配数据</li>
               <li>导入数据将绑定所选统计自然月存档</li>
             </ul>
@@ -462,7 +457,7 @@ const StationBusRevenue = () => {
             </div>
           </div>
 
-          {/* 可编辑字�?*/}
+          {/* 可编辑字段*/}
           <div className="space-y-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

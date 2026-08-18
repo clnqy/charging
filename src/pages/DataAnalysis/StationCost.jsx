@@ -2,6 +2,7 @@
 import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3 } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
+import FieldTooltip from '../../components/FieldTooltip'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
@@ -56,7 +57,7 @@ const generateMonthData = (month) => {
     const networkFee = Math.round(getRandom(2000, 10000))
     const itEquipmentRepair = Math.round(getRandom(3000, 15000))
 
-    // 总成�?= 所有成本科目合�?
+    // 总成本 = 所有成本科目合计
     const totalCost = electricityBill + 
                      busServiceFee + 
                      socialServiceFee + 
@@ -107,7 +108,7 @@ const generateMonthData = (month) => {
 }
 
 // ==================== 列定义（含口径说明）====================
-// 标记是否可内联编�?
+// 标记是否可内联编辑
 const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-40' },
@@ -139,7 +140,7 @@ const columns = [
   { key: 'networkFee', title: '网卡通讯费(元)', width: 'w-24', inlineEdit: true },
   { key: 'itEquipmentRepair', title: '信息设备维修(元)', width: 'w-28', inlineEdit: true },
 ]
-// ==================== 格式化函�?====================
+// ==================== 格式化函数====================
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined) return '-'
   if (typeof value === 'string') return value
@@ -160,7 +161,7 @@ const StationCost = () => {
   const [importFile, setImportFile] = useState(null)
   const [editingStation, setEditingStation] = useState(null)
   
-  // 内联编辑状�?
+  // 内联编辑状态
   const [editingCell, setEditingCell] = useState(null) // { rowCode, colKey }
   const [editValue, setEditValue] = useState('')
   
@@ -241,7 +242,7 @@ const StationCost = () => {
   const handleManualSave = () => {
     if (!editingStation) return
     
-    // 解析数�?
+    // 解析数据
     const parseNum = (val) => {
       const num = parseFloat(val)
       return isNaN(num) ? null : num
@@ -300,13 +301,13 @@ const StationCost = () => {
           itEquipmentRepair,
         }
 
-        // 自动计算电损�?
+        // 自动计算电损比
         if (totalPowerConsumption && totalCharging) {
           const loss = ((totalPowerConsumption - totalCharging) / totalPowerConsumption * 100).toFixed(1)
           updated.electricityLoss = `${loss}%`
         }
 
-        // 自动计算总成�?
+        // 自动计算总成本
         const sum = (electricityBill || 0) +
                    (busServiceFee || 0) +
                    (socialServiceFee || 0) +
@@ -353,12 +354,12 @@ const StationCost = () => {
     setEditValue('')
   }
 
-  // 处理编辑值变�?
+  // 处理编辑值变化
   const handleEditValueChange = (e) => {
     setEditValue(e.target.value)
   }
 
-  // 键盘事件处理（Enter提交，Esc取消�?
+  // 键盘事件处理（Enter提交，Esc取消）
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -377,11 +378,11 @@ const StationCost = () => {
     const station = currentData.find(s => s.code === rowCode)
     if (!station) return
 
-    // 解析数�?
+    // 解析数据
     let numValue = null
     const val = editValue.trim()
     
-    // 判断该字段是否为数值类�?
+    // 判断该字段是否为数值类型
     const colDef = columns.find(c => c.key === colKey)
     const isNumeric = ['totalPowerConsumption', 'electricityBill', 'reactivePowerFee', 
                        'totalCharging', 'busServiceFee', 'socialServiceFee', 'siteRent',
@@ -405,14 +406,14 @@ const StationCost = () => {
         
         const updated = { ...s }
         
-        // 设置字段�?
+        // 设置字段值
         if (numValue === null) {
           delete updated[colKey]
         } else {
           updated[colKey] = numValue
         }
 
-        // 自动计算电损�?
+        // 自动计算电损比
         if (colKey === 'totalPowerConsumption' || colKey === 'totalCharging') {
           const totalPower = updated.totalPowerConsumption || 0
           const totalCharge = updated.totalCharging || 0
@@ -422,7 +423,7 @@ const StationCost = () => {
           }
         }
 
-        // 自动计算总成�?
+        // 自动计算总成本
         const sum = (updated.electricityBill || 0) +
                    (updated.busServiceFee || 0) +
                    (updated.socialServiceFee || 0) +
@@ -468,7 +469,7 @@ const StationCost = () => {
 
   return (
     <div className="page-container h-full flex flex-col min-w-0 overflow-hidden">
-      {/* ========== 顶部操作筛选栏（占主内容高�?2%�?========= */}
+      {/* ========== 顶部操作筛选栏（占主内容高度12%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between"
         style={{ height: '12%', minHeight: '80px' }}
@@ -488,7 +489,7 @@ const StationCost = () => {
             </select>
           </div>
 
-          {/* 状态提�?*/}
+          {/* 状态提示*/}
           <div className="flex items-center gap-1 text-xs text-primary bg-blue-50 px-3 py-1.5 rounded-full">
             <Clock className="w-3 h-3" />
             <span>每月自动生成</span>
@@ -518,7 +519,7 @@ const StationCost = () => {
         </div>
       </div>
 
-      {/* ========== 页面标题�?========== */}
+      {/* ========== 页面标题========== */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5 text-primary" />
@@ -527,7 +528,7 @@ const StationCost = () => {
         <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
       </div>
 
-      {/* ========== 主表格区域（占剩余主内容高度86%�?========= */}
+      {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1"
         style={{ height: '86%' }}
@@ -541,18 +542,12 @@ const StationCost = () => {
                     key={col.key}
                     className="px-2 py-2 border-b border-r border-gray-200 text-left text-sm font-medium text-gray-500 whitespace-nowrap min-w-[160px]"
                   >
-                    <div className="group relative inline-flex items-center gap-1">
+                    <FieldTooltip content={col.tip}>
                       {col.title}
                       {col.tip && (
-                        <div className="relative inline-block">
-                          <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
-                          <div className="absolute z-50 left-1/2 -translate-x-1/2 top-full mt-1 px-2 py-1 bg-gray-800 text-white text-xs rounded whitespace-normal w-40 leading-relaxed text-left shadow-lg max-w-xs opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                            {col.tip}
-                            <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-gray-800 rotate-45"></div>
-                          </div>
-                        </div>
+                        <AlertCircle className="w-3 h-3 text-gray-400 cursor-help" />
                       )}
-                    </div>
+                    </FieldTooltip>
                   </th>
                 ))}
               </tr>
@@ -566,11 +561,11 @@ const StationCost = () => {
                     const isNull = value === null || value === undefined
                     const isEditing = editingCell?.rowCode === row.code && editingCell?.colKey === col.key
                     
-                    // 获取数值用于预警判�?
+                    // 获取数值用于预警判断
                     const numValue = parseFloat(value)
                     const isElectricityLoss = col.key === 'electricityLoss'
                     
-                    // 电损比过高预警（超过合理阈�?5%标橙红色�?
+                    // 电损比过高预警（超过合理阈值5%标橙红色）
                     const isHighLoss = isElectricityLoss && !isNaN(numValue) && numValue > 15
                     
                     // 可内联编辑的字段显示白色背景
@@ -661,7 +656,7 @@ const StationCost = () => {
             <p className="text-sm text-gray-500 mb-2">拖拽文件到此处，或点击上传</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>文件格式：.xlsx, .xls, .csv</li>
-              <li>�밴ģ���ֶε�������</li>
+              <li>请按模板字段顺序填写</li>
               <li>站点编码用于匹配数据</li>
               <li>导入数据将绑定所选统计自然月存档</li>
             </ul>
@@ -681,7 +676,7 @@ const StationCost = () => {
             </div>
           </div>
 
-          {/* 第一部分：电费清单数�?*/}
+          {/* 第一部分：电费清单数据*/}
           <div>
             <h4 className="text-sm font-medium text-gray-800 mb-2 pb-1 border-b">电费清单数据</h4>
             <div className="space-y-3">
@@ -700,7 +695,7 @@ const StationCost = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    ①缴纳电�?�?
+                    ①缴纳电费(元)
                   </label>
                   <input
                     type="number"
@@ -727,7 +722,7 @@ const StationCost = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    力调电费(�?
+                    力调电费(元)
                   </label>
                   <input
                     type="number"
@@ -753,7 +748,7 @@ const StationCost = () => {
             </div>
           </div>
 
-          {/* 第二部分：合作方与租�?*/}
+          {/* 第二部分：合作方与租金*/}
           <div>
             <h4 className="text-sm font-medium text-gray-800 mb-2 pb-1 border-b">合作方与租金</h4>
             <div className="space-y-3">
@@ -785,7 +780,7 @@ const StationCost = () => {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  场地租金(�?
+                  场地租金(元)
                 </label>
                 <input
                   type="number"
@@ -800,12 +795,12 @@ const StationCost = () => {
 
           {/* 第三部分：现场服务费 */}
           <div>
-            <h4 className="text-sm font-medium text-gray-800 mb-2 pb-1 border-b">�ֳ������</h4>
+            <h4 className="text-sm font-medium text-gray-800 mb-2 pb-1 border-b">现场服务费</h4>
             <div className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    公交充电现场服务�?�?
+                    公交充电现场服务费(元)
                   </label>
                   <input
                     type="number"
@@ -817,7 +812,7 @@ const StationCost = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    社会充电现场服务�?�?
+                    社会充电现场服务费(元)
                   </label>
                   <input
                     type="number"
@@ -831,12 +826,12 @@ const StationCost = () => {
             </div>
           </div>
 
-          {/* 第四部分：其他成本科�?*/}
+          {/* 第四部分：其他成本科目*/}
           <div>
             <h4 className="text-sm font-medium text-gray-800 mb-2 pb-1 border-b">其他成本科目</h4>
             <div className="grid grid-cols-3 gap-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">营销成本(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">营销成本(元)</label>
                 <input
                   type="number"
                   value={manualForm.marketingCost}
@@ -846,7 +841,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">标识标牌成本(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">标识标牌成本(元)</label>
                 <input
                   type="number"
                   value={manualForm.signCost}
@@ -856,7 +851,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">财务费用-利息(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">财务费用-利息(元)</label>
                 <input
                   type="number"
                   value={manualForm.interestExpense}
@@ -866,7 +861,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">折旧(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">折旧(元)</label>
                 <input
                   type="number"
                   value={manualForm.depreciation}
@@ -876,7 +871,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">劳务�?�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">劳务费(元)</label>
                 <input
                   type="number"
                   value={manualForm.laborCost}
@@ -886,7 +881,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">工程维修成本(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">工程维修成本(元)</label>
                 <input
                   type="number"
                   value={manualForm.engineeringRepair}
@@ -896,7 +891,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">运维成本(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">运维成本(元)</label>
                 <input
                   type="number"
                   value={manualForm.operationCost}
@@ -906,7 +901,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">设备保险(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">设备保险(元)</label>
                 <input
                   type="number"
                   value={manualForm.equipmentInsurance}
@@ -916,7 +911,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">安环设施成本(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">安环设施成本(元)</label>
                 <input
                   type="number"
                   value={manualForm.safetyFacility}
@@ -926,7 +921,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">平台运维(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">平台运维(元)</label>
                 <input
                   type="number"
                   value={manualForm.platformMaintenance}
@@ -936,7 +931,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">网卡通讯�?�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">网卡通讯费(元)</label>
                 <input
                   type="number"
                   value={manualForm.networkFee}
@@ -946,7 +941,7 @@ const StationCost = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">信息设备维修(�?</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">信息设备维修(元)</label>
                 <input
                   type="number"
                   value={manualForm.itEquipmentRepair}

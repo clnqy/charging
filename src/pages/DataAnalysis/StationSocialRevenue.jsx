@@ -1,6 +1,7 @@
 ﻿import React, { useState, useMemo } from 'react'
 import { FileSpreadsheet, Info } from 'lucide-react'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
+import FieldTooltip from '../../components/FieldTooltip'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
@@ -27,7 +28,7 @@ const customerTypes = [
   '小鹏',
 ]
 
-// ==================== ����ĳ��ģ������(��վ�����) ====================
+// ==================== 生成某个月模拟数据（按站点展开） ====================
 const generateMonthData = (month) => {
   const seed = month.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
   const getRandom = (min, max) => {
@@ -46,16 +47,16 @@ const generateMonthData = (month) => {
       // 社会收入合计 = 充电收入 × (1-0.6%)
       const socialIncome = Math.round(chargingIncome * 0.994)
       
-      // 社会平台服务�?
+      // 社会平台服务费
       const serviceFee = Math.round(getRandom(1000, 10000))
       
       // 社会充电成本（从成本表拉取）
       const socialCost = Math.round(socialIncome * getRandom(0.6, 0.8))
       
-      // 三方引流手续�?= 社会收入合计 + 服务�?- 成本倒算
+      // 三方引流手续费 = 社会收入合计 + 服务费 - 成本倒算
       const thirdPartyFee = Math.round(socialIncome + serviceFee - socialCost * 0.95)
       
-      // 充电毛利 = 社会收入合计 - 社会充电成本 - 三方引流手续�?
+      // 充电毛利 = 社会收入合计 - 社会充电成本 - 三方引流手续费
       const grossProfit = socialIncome - socialCost - thirdPartyFee
 
       // 根据客户类型确定结算方式
@@ -76,7 +77,7 @@ const generateMonthData = (month) => {
         grossProfit,
         remark: getCustomerRemark(customerType),
         isSubtotal: false, // 标记是否为小计行
-        stationCode: station.code, // 用于合并单元格判�?
+        stationCode: station.code, // 用于合并单元格判断
       })
     })
 
@@ -131,25 +132,25 @@ const getCustomerRemark = (customerType) => {
 
 // ==================== 列定义 - 单层表头，严格按顺序 ====================
 const columns = [
-  { key: 'code', title: '站点编码', width: 'w-24', frozen: true },
-  { key: 'stationName', title: '站点', width: 'w-40', frozen: true },
-  { key: 'month', title: '月份', width: 'w-20', frozen: true },
-  { key: 'settlementMethod', title: '结算方式', width: 'w-24' },
-  { key: 'customerType', title: '社会客户', width: 'w-20' },
-  { key: 'totalPower', title: '总电量(kWh)', width: 'w-28' },
-  { key: 'chargingIncome', title: '充电收入(元)', width: 'w-28' },
-  { key: 'socialIncome', title: '社会收入合计(元)', width: 'w-32' },
-  { key: 'serviceFee', title: '社会平台服务费(元)', width: 'w-32' },
-  { key: 'socialCost', title: '社会充电成本(元)', width: 'w-32' },
-  { key: 'thirdPartyFee', title: '三方引流手续费支出(元)', width: 'w-36' },
-  { key: 'grossProfit', title: '充电毛利(元)', width: 'w-28' },
-  { key: 'remark', title: '备注', width: 'w-32' },
+  { key: 'code', title: '站点编码', width: 'w-24', frozen: true, note: '站点基础表中的站点编码。' },
+  { key: 'stationName', title: '站点', width: 'w-40', frozen: true, note: '站点基础表中的站点名称。' },
+  { key: 'month', title: '月份', width: 'w-20', frozen: true, note: '当前报表统计月份。' },
+  { key: 'settlementMethod', title: '结算方式', width: 'w-24', note: '按社会客户类型匹配的结算口径。' },
+  { key: 'customerType', title: '社会客户', width: 'w-20', note: '社会客户或平台分类。' },
+  { key: 'totalPower', title: '总电量(kWh)', width: 'w-28', note: '该站点、该客户在统计月份内的充电总电量。' },
+  { key: 'chargingIncome', title: '充电收入(元)', width: 'w-28', note: '该客户在统计月份内产生的充电收入。' },
+  { key: 'socialIncome', title: '社会收入合计(元)', width: 'w-32', note: '充电收入扣除平台结算比例后形成的社会收入合计。' },
+  { key: 'serviceFee', title: '社会平台服务费(元)', width: 'w-32', note: '社会平台或渠道对应的服务费金额。' },
+  { key: 'socialCost', title: '社会充电成本(元)', width: 'w-32', note: '从成本报表拉取或计算得到的社会充电成本。' },
+  { key: 'thirdPartyFee', title: '三方引流手续费支出(元)', width: 'w-36', note: '第三方平台引流或渠道手续费支出。' },
+  { key: 'grossProfit', title: '充电毛利(元)', width: 'w-28', note: '社会收入合计 - 社会充电成本 - 三方引流手续费支出。' },
+  { key: 'remark', title: '备注', width: 'w-32', note: '该客户类型的结算或计费备注。' },
 ]
 
-// 各字段悬浮说�?
-const columnTips = Object.fromEntries(columns.map((col) => [col.key, col.title]))
+// 各字段悬浮说明
+const columnTips = Object.fromEntries(columns.map((col) => [col.key, col.note || col.title]))
 
-// ==================== ��ʽ������ ====================
+// ==================== 格式化函数 ====================
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined || value === '') return '-'
   if (typeof value === 'string') return value
@@ -198,7 +199,7 @@ const StationSocialRevenue = () => {
     alert(`导出成功（已选择${keys.length}个字段，前端原型模拟）`)
   }
 
-  // 获取毛利率用于预警判�?
+  // 获取毛利率用于预警判断
   const getRiskLevel = (row) => {
     if (row.customerType === '小计') return 'normal'
     if (row.grossProfit < 0) return 'danger'
@@ -208,7 +209,7 @@ const StationSocialRevenue = () => {
 
   return (
     <div className="page-container h-full flex flex-col min-w-0 overflow-hidden">
-      {/* ========== 顶部操作筛选栏（占主内容高�?2%�?========= */}
+      {/* ========== 顶部操作筛选栏（占主内容高度12%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between"
         style={{ height: '12%', minHeight: '80px' }}
@@ -228,7 +229,7 @@ const StationSocialRevenue = () => {
             </select>
           </div>
 
-          {/* 状态提�?*/}
+          {/* 状态提示*/}
           <div className="flex items-center gap-1 text-xs text-blue-600 bg-blue-50 px-3 py-1.5 rounded-full">
             <Info className="w-3 h-3" />
             <span>所有数据由系统自动计算，仅支持查看</span>
@@ -240,7 +241,7 @@ const StationSocialRevenue = () => {
         </div>
       </div>
 
-      {/* ========== 页面标题�?========== */}
+      {/* ========== 页面标题========== */}
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5 text-primary" />
@@ -249,7 +250,7 @@ const StationSocialRevenue = () => {
         <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
       </div>
 
-      {/* ========== 主表格区域（占剩余主内容高度86%�?========= */}
+      {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
       <div
         className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1"
         style={{ height: '86%' }}
@@ -267,16 +268,10 @@ const StationSocialRevenue = () => {
                     } align-middle`}
                     style={{ minWidth: col.frozen ? '100px' : undefined, zIndex: col.frozen ? 20 : 10 }}
                   >
-                    <div className="group relative inline-flex items-center gap-1" style={{ overflow: 'visible' }}>
+                    <FieldTooltip content={columnTips[col.key]}>
                       {col.title}
-                      <div className="relative inline-block">
-                        <Info className="w-3 h-3 text-gray-400 cursor-help hover:text-gray-600" />
-                        <div className="absolute z-[9999] left-1/2 -translate-x-1/2 top-full mt-1 px-3 py-2 bg-gray-800 text-white text-xs rounded shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-normal w-48 leading-relaxed text-left">
-                          {columnTips[col.key]}
-                          <div className="absolute left-1/2 -translate-x-1/2 -top-1 w-2 h-2 bg-gray-800 rotate-45"></div>
-                        </div>
-                      </div>
-                    </div>
+                      <Info className="w-3 h-3 text-gray-400 cursor-help hover:text-gray-600" />
+                    </FieldTooltip>
                   </th>
                 ))}
               </tr>
@@ -286,7 +281,7 @@ const StationSocialRevenue = () => {
                 // 判断是否是小计行
                 const isSubtotalRow = row.isSubtotal || row.customerType === '小计'
                 
-                // 判断是否有风险预�?仅非小计�?
+                // 判断是否有风险预警，仅非小计行
                 let riskLevel = 'normal'
                 if (!isSubtotalRow) {
                   if (row.grossProfit < 0) riskLevel = 'danger'
@@ -314,21 +309,21 @@ const StationSocialRevenue = () => {
                         else if (!isSubtotalRow) cellStyle = 'text-green-600 font-semibold'
                       }
                       
-                      // 小计行样�?
+                      // 小计行样式
                       if (isSubtotalRow) {
                         if (['totalPower', 'chargingIncome', 'socialIncome', 'serviceFee', 'thirdPartyFee', 'grossProfit'].includes(col.key)) {
                           cellStyle = 'text-blue-600 font-bold'
                         }
                       }
                       
-                      // 合并单元格逻辑:站点编码、站点名称、月份需要跨行合�?
+                      // 合并单元格逻辑:站点编码、站点名称、月份需要跨行合并
                       let rowSpan = 1
                       
                       if (!isSubtotalRow && ['code', 'stationName', 'month'].includes(col.key)) {
                         const prevRow = index > 0 ? currentData[index - 1] : null
                         const isFirstInGroup = !prevRow || prevRow.code !== row.code || prevRow.customerType === '小计'
                         
-                        // 如果不是该组第一�?跳过渲染(由上一行合�?
+                        // 如果不是该组第一行，跳过渲染(由上一行合并)
                         if (!isFirstInGroup) {
                           return null
                         }
@@ -343,7 +338,7 @@ const StationSocialRevenue = () => {
                         }
                       }
                       
-                      // 冻结列样�?包括站点编码、站点名称、月�?
+                      // 冻结列样式，包括站点编码、站点名称、月份
                       const isFrozenCol = ['code', 'stationName', 'month'].includes(col.key)
                       
                       return (

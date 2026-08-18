@@ -1,7 +1,19 @@
-import React, { useState, useMemo, useRef, useCallback } from 'react'
+﻿import React, { useState, useMemo, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Database, Search, Upload, Download, Edit, Eye, AlertCircle, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info } from 'lucide-react'
+import { Database, Search, Upload, Download, Edit, Eye, AlertCircle, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, Columns3 } from 'lucide-react'
 import Modal from '../../components/Modal'
+
+const BUSINESS_STATUS_OPTIONS = ['\u8425\u4e1a\u4e2d', '\u6682\u505c\u8425\u4e1a', '\u505c\u4e1a']
+const BUSINESS_STATUS_OPTIONS_LABEL = '\u7ecf\u8425\u72b6\u6001'
+
+const emptyFilters = {
+  stationName: '',
+  operator: '',
+  operationMode: '',
+  businessStatus: '',
+}
+
+const STATION_BASE_VISIBLE_COLUMNS_KEY = 'stationBaseVisibleColumns'
 
 // Tooltip悬浮提示组件
 const CellTooltip = ({ content, children }) => {
@@ -65,6 +77,7 @@ const mockStationData = [
     managementUnit: '巴驿站场分公司',
     dataSource: '驿满平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[0],
     remark: ''
   },
   { 
@@ -82,6 +95,7 @@ const mockStationData = [
     managementUnit: '北部运营分公司',
     dataSource: '驿满平台',
     fastSlow: '慢充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[0],
     remark: ''
   },
   { 
@@ -99,6 +113,7 @@ const mockStationData = [
     managementUnit: '南部运营分公司',
     dataSource: '万马平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[1],
     remark: '交通枢纽重点站点'
   },
   { 
@@ -116,6 +131,7 @@ const mockStationData = [
     managementUnit: '巴驿站场分公司',
     dataSource: '国网平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[0],
     remark: ''
   },
   { 
@@ -133,6 +149,7 @@ const mockStationData = [
     managementUnit: '北部运营分公司',
     dataSource: '万马平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[0],
     remark: '高压供电'
   },
   { 
@@ -150,6 +167,7 @@ const mockStationData = [
     managementUnit: '南部运营分公司',
     dataSource: '万马平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[2],
     remark: ''
   },
   { 
@@ -167,6 +185,7 @@ const mockStationData = [
     managementUnit: '北部运营分公司',
     dataSource: '万马平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[0],
     remark: '多平台互通'
   },
   { 
@@ -184,6 +203,7 @@ const mockStationData = [
     managementUnit: '南部运营分公司',
     dataSource: '驿满平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[0],
     remark: ''
   },
   { 
@@ -201,6 +221,7 @@ const mockStationData = [
     managementUnit: '巴驿站场分公司',
     dataSource: '国网平台',
     fastSlow: '慢充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[1],
     remark: '公立医院'
   },
   { 
@@ -218,6 +239,7 @@ const mockStationData = [
     managementUnit: '北部运营分公司',
     dataSource: '驿满平台',
     fastSlow: '快充',
+    businessStatus: BUSINESS_STATUS_OPTIONS[0],
     remark: '市中心核心商圈'
   },
 ]
@@ -225,26 +247,18 @@ const mockStationData = [
 const enrichedStationData = mockStationData.map((station, index) => {
   const gunCount = station.gunCount || 0
   const equipmentPower = gunCount * (station.fastSlow === '鎱㈠厖' ? 30 : 60)
-  const transformerCapacity = Math.ceil(equipmentPower * 1.25 / 100) * 100
-  const researchIncome = 180000 + index * 26000
-  const targetIncome = Math.round(researchIncome * 1.12)
 
   return {
     ...station,
     businessHours: index % 4 === 0 ? '00:00-24:00' : '06:00-22:00',
     nightGunCount: Math.max(0, Math.floor(gunCount * (index % 3 === 0 ? 0.5 : 0.25))),
     equipmentPower,
-    transformerCapacity,
-    siteRent: 18000 + index * 3500,
-    researchIncome,
-    targetIncome,
-    struggleIncome: Math.round(targetIncome * 1.05),
   }
 })
 
 const StationBase = () => {
   const navigate = useNavigate()
-  const [searchQuery, setSearchQuery] = useState('')
+  const [filters, setFilters] = useState(emptyFilters)
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
@@ -267,8 +281,9 @@ const StationBase = () => {
     { key: 'commissionTime', name: '投运时间', width: 110 },
     { key: 'pileCount', name: '桩数量', width: 80 },
     { key: 'gunCount', name: '枪数量', width: 80 },
-    { key: 'coopMode', name: '合作模式', width: 130 },
+    { key: 'coopMode', name: '经营模式', width: 130 },
     { key: 'coopUnit', name: '充电站合作单位', width: 200 },
+    { key: 'businessStatus', name: BUSINESS_STATUS_OPTIONS_LABEL, width: 100 },
     { key: 'managementUnit', name: '现场管理单位', width: 140 },
     { key: 'dataSource', name: '数据来源平台', width: 110 },
     { key: 'fastSlow', name: '快/慢桩', width: 90 },
@@ -278,17 +293,35 @@ const StationBase = () => {
   
   // 自定义Hook实现列宽管理
   const displayColumnDefs = [
-    ...columnDefs.slice(0, 14),
+    ...columnDefs.slice(0, 15),
     { key: 'businessHours', name: '营业时间', width: 110 },
     { key: 'nightGunCount', name: '夜间开放枪数', width: 110 },
     { key: 'equipmentPower', name: '设备功率(kW)', width: 110 },
-    { key: 'transformerCapacity', name: '变压器容量(kVA)', width: 130 },
-    { key: 'siteRent', name: '场地租金(元/月)', width: 130 },
-    { key: 'researchIncome', name: '可研收入(元/月)', width: 130 },
-    { key: 'targetIncome', name: '经营目标(元/月)', width: 130 },
-    columnDefs[14],
-    { ...columnDefs[15], width: 120 },
+    columnDefs[15],
+    { ...columnDefs[16], width: 120 },
   ]
+
+  const defaultVisibleColumnKeys = displayColumnDefs.map(col => col.key)
+
+  const [columnSettingOpen, setColumnSettingOpen] = useState(false)
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState(() => {
+    const saved = localStorage.getItem(STATION_BASE_VISIBLE_COLUMNS_KEY)
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved)
+        if (Array.isArray(parsed)) {
+          const validKeys = parsed.filter(key => defaultVisibleColumnKeys.includes(key))
+          return validKeys.includes('action') ? validKeys : [...validKeys, 'action']
+        }
+      } catch (e) {
+        console.error('Failed to parse visible columns:', e)
+      }
+    }
+    return defaultVisibleColumnKeys
+  })
+
+  const visibleColumnDefs = displayColumnDefs.filter(col => visibleColumnKeys.includes(col.key))
+  const isColumnVisible = (key) => visibleColumnKeys.includes(key)
 
   const [columnWidths, setColumnWidths] = useState(() => {
     const saved = localStorage.getItem('stationBaseColumnWidths')
@@ -309,29 +342,78 @@ const StationBase = () => {
     name: '',
     shortName: '',
     group: '',
+    source: '',
     commissionTime: '',
     pileCount: '',
     gunCount: '',
     coopMode: '',
     coopUnit: '',
+    businessStatus: '',
     managementUnit: '',
     dataSource: '',
     fastSlow: '',
+    businessHours: '',
+    nightGunCount: '',
+    equipmentPower: '',
     remark: '',
   })
 
+  const operatorOptions = useMemo(() => (
+    [...new Set(enrichedStationData.map(item => item.coopUnit).filter(Boolean))]
+  ), [])
+
+  const operationModeOptions = useMemo(() => (
+    [...new Set(enrichedStationData.map(item => item.coopMode).filter(Boolean))]
+  ), [])
+
+  const updateFilter = (key, value) => {
+    setFilters(prev => ({ ...prev, [key]: value }))
+    resetToFirstPage()
+  }
+
+  const handleSearch = () => {
+    resetToFirstPage()
+  }
+
+  const handleResetFilters = () => {
+    setFilters(emptyFilters)
+    resetToFirstPage()
+  }
+
+  const saveVisibleColumns = (nextKeys) => {
+    setVisibleColumnKeys(nextKeys)
+    localStorage.setItem(STATION_BASE_VISIBLE_COLUMNS_KEY, JSON.stringify(nextKeys))
+  }
+
+  const toggleColumnVisible = (key) => {
+    if (key === 'action') return
+    const nextKeys = visibleColumnKeys.includes(key)
+      ? visibleColumnKeys.filter(item => item !== key)
+      : defaultVisibleColumnKeys.filter(item => item === key || visibleColumnKeys.includes(item))
+    saveVisibleColumns(nextKeys.includes('action') ? nextKeys : [...nextKeys, 'action'])
+  }
+
+  const showAllColumns = () => {
+    saveVisibleColumns(defaultVisibleColumnKeys)
+  }
+
+  const resetVisibleColumns = () => {
+    saveVisibleColumns(defaultVisibleColumnKeys)
+  }
+
   // 搜索过滤
   const filteredData = useMemo(() => {
-    if (!searchQuery.trim()) return enrichedStationData
-    const query = searchQuery.toLowerCase()
-    return enrichedStationData.filter(item =>
-      item.code.toLowerCase().includes(query) ||
-      item.originalCode.toLowerCase().includes(query) ||
-      item.name.toLowerCase().includes(query) ||
-      item.shortName.toLowerCase().includes(query) ||
-      item.group.toLowerCase().includes(query)
-    )
-  }, [searchQuery])
+    const stationName = filters.stationName.trim().toLowerCase()
+
+    return enrichedStationData.filter(item => {
+      const matchesName = !stationName || item.name.toLowerCase().includes(stationName)
+      const matchesOperator = !filters.operator || item.coopUnit === filters.operator
+      const matchesOperationMode = !filters.operationMode || item.coopMode === filters.operationMode
+      const matchesBusinessStatus = !filters.businessStatus || item.businessStatus === filters.businessStatus
+
+      return matchesName && matchesOperator && matchesOperationMode && matchesBusinessStatus
+    })
+  }, [filters])
   
   // 分页计算
   const totalPages = Math.ceil(filteredData.length / pageSize)
@@ -383,14 +465,19 @@ const StationBase = () => {
       name: station.name,
       shortName: station.shortName,
       group: station.group,
+      source: station.source || '',
       commissionTime: station.commissionTime || '',
       pileCount: station.pileCount || '',
       gunCount: station.gunCount || '',
       coopMode: station.coopMode || '',
       coopUnit: station.coopUnit || '',
+      businessStatus: station.businessStatus || '',
       managementUnit: station.managementUnit || '',
       dataSource: station.dataSource || '',
       fastSlow: station.fastSlow || '',
+      businessHours: station.businessHours || '',
+      nightGunCount: station.nightGunCount ?? '',
+      equipmentPower: station.equipmentPower || '',
       remark: station.remark || '',
     })
     setEditModalOpen(true)
@@ -424,7 +511,7 @@ const StationBase = () => {
     return source === '系统同步' ? 'text-primary' : 'text-warning'
   }
 
-  // 合作模式颜色
+  // 经营模式颜色
   const getCoopModeColor = (mode) => {
     const colors = {
       '自营站': 'bg-blue-100 text-blue-700',
@@ -438,50 +525,122 @@ const StationBase = () => {
     return colors[mode] || 'bg-gray-100 text-gray-700'
   }
 
+  const getBusinessStatusColor = (status) => {
+    const colors = {
+      [BUSINESS_STATUS_OPTIONS[0]]: 'bg-green-100 text-green-700',
+      [BUSINESS_STATUS_OPTIONS[1]]: 'bg-yellow-100 text-yellow-700',
+      [BUSINESS_STATUS_OPTIONS[2]]: 'bg-gray-100 text-gray-700',
+    }
+    return colors[status] || 'bg-gray-100 text-gray-700'
+  }
+
   return (
     <div className="page-container h-full flex flex-col">
       <div className="page-content flex-1 flex flex-col">
         {/* 搜索 & 操作区 */}
         <div className="flex items-center gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
-          <div className="flex items-center gap-2 flex-1">
+          <div className="flex flex-wrap items-center gap-2 flex-1">
             <Search className="w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="搜索站点编码、原始编码、站点、缩写、站群名..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary transition-colors"
+              placeholder={'\u7ad9\u70b9\u540d\u79f0'}
+              value={filters.stationName}
+              onChange={(e) => updateFilter('stationName', e.target.value)}
+              className="w-52 px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary transition-colors"
             />
+            <select
+              value={filters.operator}
+              onChange={(e) => updateFilter('operator', e.target.value)}
+              className="w-48 px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+            >
+              <option value="">{'\u5168\u90e8\u8fd0\u8425\u5546'}</option>
+              {operatorOptions.map((operator) => (
+                <option key={operator} value={operator}>{operator}</option>
+              ))}
+            </select>
+            <select
+              value={filters.operationMode}
+              onChange={(e) => updateFilter('operationMode', e.target.value)}
+              className="w-40 px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+            >
+              <option value="">{'\u5168\u90e8\u8fd0\u8425\u6a21\u5f0f'}</option>
+              {operationModeOptions.map((mode) => (
+                <option key={mode} value={mode}>{mode}</option>
+              ))}
+            </select>
+            <select
+              value={filters.businessStatus}
+              onChange={(e) => updateFilter('businessStatus', e.target.value)}
+              className="w-36 px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+            >
+              <option value="">{'\u5168\u90e8\u7ecf\u8425\u72b6\u6001'}</option>
+              {BUSINESS_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
             <button
-              onClick={() => {}}
+              onClick={handleSearch}
               className="btn-primary text-sm flex items-center gap-1"
             >
               <Search className="w-4 h-4" />
-              搜索
+              {'\u641c\u7d22'}
             </button>
-            {searchQuery && (
+            <button
+              onClick={handleResetFilters}
+              className="btn-secondary text-sm"
+            >
+              {'\u91cd\u7f6e'}
+            </button>
+            <div className="relative">
               <button
-                onClick={() => setSearchQuery('')}
-                className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                onClick={() => setColumnSettingOpen(open => !open)}
+                className="btn-secondary text-sm flex items-center gap-1"
               >
-                清空
+                <Columns3 className="w-4 h-4" />
+                列设置
               </button>
-            )}
+              {columnSettingOpen && (
+                <div className="absolute left-0 top-full mt-2 z-30 w-72 bg-white border border-gray-200 rounded shadow-lg p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-medium text-gray-700">列设置</span>
+                    <div className="flex items-center gap-2">
+                      <button type="button" onClick={showAllColumns} className="text-xs text-primary hover:underline">全选</button>
+                      <button type="button" onClick={resetVisibleColumns} className="text-xs text-gray-500 hover:text-gray-700">恢复默认</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 max-h-72 overflow-auto">
+                    {displayColumnDefs.map((col) => (
+                      <label key={col.key} className={`flex items-center gap-2 text-sm text-gray-700 ${col.key === 'action' ? 'opacity-60' : 'cursor-pointer'}`}>
+                        <input
+                          type="checkbox"
+                          checked={visibleColumnKeys.includes(col.key)}
+                          disabled={col.key === 'action'}
+                          onChange={() => toggleColumnVisible(col.key)}
+                        />
+                        <span className="truncate" title={col.name}>{col.name}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
-          <button
-            onClick={() => setImportModalOpen(true)}
-            className="btn-primary text-sm flex items-center gap-1"
-          >
-            <Upload className="w-4 h-4" />
-            导入
-          </button>
-          <button
-            onClick={handleExport}
-            className="btn-secondary text-sm flex items-center gap-1"
-          >
-            <Download className="w-4 h-4" />
-            导出
-          </button>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              onClick={() => setImportModalOpen(true)}
+              className="btn-primary text-sm flex items-center gap-1"
+            >
+              <Upload className="w-4 h-4" />
+              {'\u5bfc\u5165'}
+            </button>
+            <button
+              onClick={handleExport}
+              className="btn-secondary text-sm flex items-center gap-1"
+            >
+              <Download className="w-4 h-4" />
+              {'\u5bfc\u51fa'}
+            </button>
+          </div>
         </div>
 
         {/* 数据表格 - 固定宽度容器,横向滚动 */}
@@ -492,7 +651,9 @@ const StationBase = () => {
           <table className="text-sm border-collapse" style={{ tableLayout: 'fixed', width: 'auto' }}>
             <thead className="bg-gray-100 sticky top-0 z-10">
               <tr>
-                {displayColumnDefs.map((col, colIndex) => (
+                {visibleColumnDefs.map((col) => {
+                  const colIndex = displayColumnDefs.findIndex(item => item.key === col.key)
+                  return (
                   <th
                     key={col.key}
                     className="border-b border-r border-gray-300 py-2 px-3 font-bold text-gray-700 whitespace-nowrap overflow-hidden text-ellipsis"
@@ -519,7 +680,8 @@ const StationBase = () => {
                       </div>
                     </CellTooltip>
                   </th>
-                ))}
+                  )
+                })}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
@@ -529,6 +691,7 @@ const StationBase = () => {
                   className={`transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'} hover:bg-blue-50`}
                 >
                   {/* 站点编码 */}
+                  {isColumnVisible('code') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       onClick={() => { setSelectedStation(row); setDetailModalOpen(true) }}
                       style={{ 
@@ -540,7 +703,9 @@ const StationBase = () => {
                       <span className="font-medium text-primary block cursor-pointer hover:underline">{row.code}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 站点原始编码 */}
+                  {isColumnVisible('originalCode') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[1], minWidth: columnWidths[1], maxWidth: columnWidths[1],
@@ -550,7 +715,9 @@ const StationBase = () => {
                       <span className="text-gray-600 block">{row.originalCode}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 站点名称 */}
+                  {isColumnVisible('name') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[2], minWidth: columnWidths[2], maxWidth: columnWidths[2],
@@ -560,7 +727,9 @@ const StationBase = () => {
                       <span className="text-gray-800 block">{row.name}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 站点缩写 */}
+                  {isColumnVisible('shortName') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[3], minWidth: columnWidths[3], maxWidth: columnWidths[3],
@@ -570,7 +739,9 @@ const StationBase = () => {
                       <span className="text-gray-600 block">{row.shortName}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 站群名 */}
+                  {isColumnVisible('group') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[4], minWidth: columnWidths[4], maxWidth: columnWidths[4],
@@ -580,7 +751,9 @@ const StationBase = () => {
                       <span className="text-gray-600 block">{row.group}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 数据来源 */}
+                  {isColumnVisible('source') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[5], minWidth: columnWidths[5], maxWidth: columnWidths[5],
@@ -592,7 +765,9 @@ const StationBase = () => {
                       </span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 投运时间 */}
+                  {isColumnVisible('commissionTime') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[6], minWidth: columnWidths[6], maxWidth: columnWidths[6],
@@ -602,7 +777,9 @@ const StationBase = () => {
                       <span className="text-gray-600 block">{row.commissionTime || '-'}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 桩数量 */}
+                  {isColumnVisible('pileCount') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[7], minWidth: columnWidths[7], maxWidth: columnWidths[7],
@@ -612,7 +789,9 @@ const StationBase = () => {
                       <span className="font-medium text-gray-800 block">{row.pileCount || '-'}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 枪数量 */}
+                  {isColumnVisible('gunCount') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[8], minWidth: columnWidths[8], maxWidth: columnWidths[8],
@@ -622,7 +801,9 @@ const StationBase = () => {
                       <span className="font-medium text-gray-800 block">{row.gunCount || '-'}</span>
                     </CellTooltip>
                   </td>
-                  {/* 合作模式 */}
+                  )}
+                  {/* 经营模式 */}
+                  {isColumnVisible('coopMode') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[9], minWidth: columnWidths[9], maxWidth: columnWidths[9],
@@ -634,9 +815,11 @@ const StationBase = () => {
                       </span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 充电站合作单位 */}
+                  {isColumnVisible('coopUnit') && (
                   <td className="border-r border-gray-200 py-2 px-3"
-                      style={{ 
+                      style={{
                         width: columnWidths[10], minWidth: columnWidths[10], maxWidth: columnWidths[10],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
@@ -644,30 +827,50 @@ const StationBase = () => {
                       <span className="text-gray-600 text-xs block">{row.coopUnit || '-'}</span>
                     </CellTooltip>
                   </td>
-                  {/* 现场管理单位 */}
+                  )}
+                  {/* 经营状态 */}
+                  {isColumnVisible('businessStatus') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[11], minWidth: columnWidths[11], maxWidth: columnWidths[11],
+                        textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                      }}>
+                    <CellTooltip content={row.businessStatus || ''}>
+                      <span className={`text-xs px-2 py-1 rounded inline-block ${getBusinessStatusColor(row.businessStatus)} block`}>
+                        {row.businessStatus || '-'}
+                      </span>
+                    </CellTooltip>
+                  </td>
+                  )}
+                  {/* 现场管理单位 */}
+                  {isColumnVisible('managementUnit') && (
+                  <td className="border-r border-gray-200 py-2 px-3"
+                      style={{
+                        width: columnWidths[12], minWidth: columnWidths[12], maxWidth: columnWidths[12],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.managementUnit || ''}>
                       <span className="text-gray-600 block">{row.managementUnit || '-'}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 数据来源平台 */}
+                  {isColumnVisible('dataSource') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[12], minWidth: columnWidths[12], maxWidth: columnWidths[12],
+                        width: columnWidths[13], minWidth: columnWidths[13], maxWidth: columnWidths[13],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.dataSource || ''}>
                       <span className="text-xs text-gray-600 block">{row.dataSource || '-'}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 快/慢桩 */}
+                  {isColumnVisible('fastSlow') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[13], minWidth: columnWidths[13], maxWidth: columnWidths[13],
+                        width: columnWidths[14], minWidth: columnWidths[14], maxWidth: columnWidths[14],
                         textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.fastSlow || ''}>
@@ -676,83 +879,57 @@ const StationBase = () => {
                       </span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 备注 */}
+                  {isColumnVisible('businessHours') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[14], minWidth: columnWidths[14], maxWidth: columnWidths[14],
+                        width: columnWidths[15], minWidth: columnWidths[15], maxWidth: columnWidths[15],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.businessHours || ''}>
                       <span className="text-gray-600 block">{row.businessHours || '-'}</span>
                     </CellTooltip>
                   </td>
+                  )}
+                  {isColumnVisible('nightGunCount') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[15], minWidth: columnWidths[15], maxWidth: columnWidths[15],
+                        width: columnWidths[16], minWidth: columnWidths[16], maxWidth: columnWidths[16],
                         textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={String(row.nightGunCount ?? '')}>
                       <span className="text-gray-600 block">{row.nightGunCount ?? '-'}</span>
                     </CellTooltip>
                   </td>
+                  )}
+                  {isColumnVisible('equipmentPower') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[16], minWidth: columnWidths[16], maxWidth: columnWidths[16],
+                        width: columnWidths[17], minWidth: columnWidths[17], maxWidth: columnWidths[17],
                         textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={String(row.equipmentPower || '')}>
                       <span className="text-gray-600 block">{row.equipmentPower || '-'}</span>
                     </CellTooltip>
                   </td>
-                  <td className="border-r border-gray-200 py-2 px-3"
-                      style={{ 
-                        width: columnWidths[17], minWidth: columnWidths[17], maxWidth: columnWidths[17],
-                        textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                      }}>
-                    <CellTooltip content={String(row.transformerCapacity || '')}>
-                      <span className="text-gray-600 block">{row.transformerCapacity || '-'}</span>
-                    </CellTooltip>
-                  </td>
+                  )}
+                  {isColumnVisible('remark') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
                         width: columnWidths[18], minWidth: columnWidths[18], maxWidth: columnWidths[18],
-                        textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                      }}>
-                    <CellTooltip content={String(row.siteRent || '')}>
-                      <span className="text-gray-600 block">{row.siteRent?.toLocaleString('zh-CN') || '-'}</span>
-                    </CellTooltip>
-                  </td>
-                  <td className="border-r border-gray-200 py-2 px-3"
-                      style={{ 
-                        width: columnWidths[19], minWidth: columnWidths[19], maxWidth: columnWidths[19],
-                        textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                      }}>
-                    <CellTooltip content={String(row.researchIncome || '')}>
-                      <span className="text-gray-600 block">{row.researchIncome?.toLocaleString('zh-CN') || '-'}</span>
-                    </CellTooltip>
-                  </td>
-                  <td className="border-r border-gray-200 py-2 px-3"
-                      style={{ 
-                        width: columnWidths[20], minWidth: columnWidths[20], maxWidth: columnWidths[20],
-                        textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                      }}>
-                    <CellTooltip content={String(row.targetIncome || '')}>
-                      <span className="text-gray-600 block">{row.targetIncome?.toLocaleString('zh-CN') || '-'}</span>
-                    </CellTooltip>
-                  </td>
-                  <td className="border-r border-gray-200 py-2 px-3"
-                      style={{ 
-                        width: columnWidths[21], minWidth: columnWidths[21], maxWidth: columnWidths[21],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.remark || ''}>
                       <span className="text-gray-500 text-xs block">{row.remark || '-'}</span>
                     </CellTooltip>
                   </td>
+                  )}
                   {/* 操作列 */}
+                  {isColumnVisible('action') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[22], minWidth: columnWidths[22], maxWidth: columnWidths[22],
+                        width: columnWidths[19], minWidth: columnWidths[19], maxWidth: columnWidths[19],
                         textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         backgroundColor: 'inherit'
                       }}>
@@ -764,6 +941,7 @@ const StationBase = () => {
                       编辑
                     </button>
                   </td>
+                  )}
                 </tr>
               ))}
             </tbody>
@@ -882,7 +1060,6 @@ const StationBase = () => {
                 <p>营业时间：{selectedStation.businessHours}</p>
                 <p>夜间开放枪数：{selectedStation.nightGunCount}</p>
                 <p>设备功率：{selectedStation.equipmentPower} kW</p>
-                <p>变压器容量：{selectedStation.transformerCapacity} kVA</p>
                 <p>快/慢充：{selectedStation.fastSlow}</p>
               </div>
             </div>
@@ -890,13 +1067,10 @@ const StationBase = () => {
             <div>
               <h4 className="font-semibold text-gray-800 mb-2">合作与经营目标</h4>
               <div className="grid grid-cols-2 gap-3 text-gray-600">
-                <p>合作模式：{selectedStation.coopMode}</p>
+                <p>经营模式：{selectedStation.coopMode}</p>
                 <p>合作单位：{selectedStation.coopUnit}</p>
+                <p>经营状态：{selectedStation.businessStatus}</p>
                 <p>现场管理单位：{selectedStation.managementUnit}</p>
-                <p>场地租金：{selectedStation.siteRent?.toLocaleString('zh-CN')} 元/月</p>
-                <p>可研收入：{selectedStation.researchIncome?.toLocaleString('zh-CN')} 元/月</p>
-                <p>经营目标：{selectedStation.targetIncome?.toLocaleString('zh-CN')} 元/月</p>
-                <p>奋斗收入：{selectedStation.struggleIncome?.toLocaleString('zh-CN')} 元/月</p>
               </div>
             </div>
 
@@ -940,7 +1114,7 @@ const StationBase = () => {
               <ul className="mt-1 ml-4 list-disc space-y-1">
                 <li><strong>基础信息（必填）：</strong>站点原始编码、站点名称、站点缩写、站群名</li>
                 <li><strong>投运信息（必填）：</strong>投运时间（格式：YYYY-MM-DD）、桩数量、枪数量</li>
-                <li><strong>合作信息（必填）：</strong>合作模式、充电站合作单位、现场管理单位</li>
+                <li><strong>合作信息（必填）：</strong>经营模式、充电站合作单位、现场管理单位</li>
                 <li><strong>平台信息（必填）：</strong>数据来源平台、快/慢桩类型</li>
                 <li><strong>其他信息：</strong>备注（可选）</li>
               </ul>
@@ -972,8 +1146,8 @@ const StationBase = () => {
             <input
               type="text"
               value={editForm.originalCode}
-              onChange={(e) => setEditForm({ ...editForm, originalCode: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 rounded text-sm bg-gray-100 text-gray-500"
             />
           </div>
           <div>
@@ -981,8 +1155,8 @@ const StationBase = () => {
             <input
               type="text"
               value={editForm.name}
-              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-              className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+              disabled
+              className="w-full px-3 py-2 border border-gray-200 rounded text-sm bg-gray-100 text-gray-500"
             />
           </div>
           <div>
@@ -1002,6 +1176,19 @@ const StationBase = () => {
               onChange={(e) => setEditForm({ ...editForm, group: e.target.value })}
               className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">数据来源</label>
+            <select
+              value={editForm.source}
+              onChange={(e) => setEditForm({ ...editForm, source: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+            >
+              <option value="">请选择</option>
+              <option value="系统同步">系统同步</option>
+              <option value="外部导入">外部导入</option>
+            </select>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -1053,12 +1240,12 @@ const StationBase = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">合作模式</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">经营模式</label>
             <select
               value={editForm.coopMode}
               onChange={(e) => {
                 const selectedMode = e.target.value
-                // 根据合作模式自动匹配合作单位和管理单位
+                // 根据经营模式自动匹配合作单位和管理单位
                 let autoCoopUnit = ''
                 let autoManagementUnit = ''
                 
@@ -1096,8 +1283,22 @@ const StationBase = () => {
               value={editForm.coopUnit}
               onChange={(e) => setEditForm({ ...editForm, coopUnit: e.target.value })}
               className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
-              placeholder="根据合作模式自动匹配"
+              placeholder="根据经营模式自动匹配"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">经营状态</label>
+            <select
+              value={editForm.businessStatus}
+              onChange={(e) => setEditForm({ ...editForm, businessStatus: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+            >
+              <option value="">请选择</option>
+              {BUSINESS_STATUS_OPTIONS.map((status) => (
+                <option key={status} value={status}>{status}</option>
+              ))}
+            </select>
           </div>
           
           <div>
@@ -1119,26 +1320,44 @@ const StationBase = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">数据来源平台</label>
               <select
                 value={editForm.dataSource}
-                onChange={(e) => {
-                  const selectedSource = e.target.value
-                  // 根据合作模式自动匹配数据来源
-                  let autoDataSource = ''
-                  if (editForm.coopMode === '自营站') {
-                    autoDataSource = '驿满平台'
-                  }
-                  
-                  setEditForm({
-                    ...editForm,
-                    dataSource: autoDataSource || selectedSource,
-                  })
-                }}
-                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                disabled
+                className="w-full px-3 py-2 border border-gray-200 rounded text-sm bg-gray-100 text-gray-500"
               >
                 <option value="">请选择</option>
                 <option value="驿满平台">驿满平台</option>
                 <option value="万马平台">万马平台</option>
                 <option value="国网平台">国网平台</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">营业时间</label>
+              <input
+                type="text"
+                value={editForm.businessHours}
+                onChange={(e) => setEditForm({ ...editForm, businessHours: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                placeholder="例如 06:00-22:00"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">夜间开放枪数</label>
+              <input
+                type="number"
+                value={editForm.nightGunCount}
+                onChange={(e) => setEditForm({ ...editForm, nightGunCount: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                min="0"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">设备功率(kW)</label>
+              <input
+                type="number"
+                value={editForm.equipmentPower}
+                onChange={(e) => setEditForm({ ...editForm, equipmentPower: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                min="0"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">备注</label>
