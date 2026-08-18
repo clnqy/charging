@@ -303,7 +303,7 @@ const StationBusRevenue = () => {
       <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
           <FileSpreadsheet className="w-5 h-5 text-primary" />
-          <h2 className="text-lg font-bold text-gray-800">站点公交收入明细表</h2>
+          <h2 className="text-lg font-bold text-gray-800">站点公交收入明细表（待业务部门给到新表）</h2>
         </div>
         <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
       </div>
