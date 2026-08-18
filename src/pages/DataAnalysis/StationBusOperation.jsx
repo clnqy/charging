@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from 'react'
-import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3 } from 'lucide-react'
+import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import InlineEditableCell from './InlineEditableCell'
@@ -25,6 +25,10 @@ const generateMonthData = (month) => {
     const val = (Math.sin(seed * 999 + min) + 1) / 2
     return Math.floor(min + val * (max - min))
   }
+  const getRandomFloat = (min, max, decimals = 2) => {
+    const val = (Math.sin(seed * 999 + min) + 1) / 2
+    return Number((min + val * (max - min)).toFixed(decimals))
+  }
 
   return baseStationData.map((station) => {
     // 手动录入字段（初始为空）
@@ -45,10 +49,70 @@ const generateMonthData = (month) => {
     // 总公交充电量(kWh)
     const totalBusCharging = getRandom(50000, 300000)
 
+    // 总里程(km)
+    const totalMileage = Math.round(totalBusCharging / getRandomFloat(0.72, 1.18, 2))
+
+    // 充电总时长(h)
+    const chargingTotalDuration = getRandomFloat(220, 920, 2)
+
+    // 枪数
+    const gunCount = getRandom(12, 42)
+
+    // 充电车日数（车 × 当日有充电去重）
+    const chargingVehicleDays = getRandom(120, 480)
+
+    // 窗口车台数
+    const windowBusCount = getRandom(8, Math.max(9, chargingBusCount))
+
+    // 订单与00:00-06:30窗口重叠时长(h/月)
+    const valleyOverlapDuration = getRandomFloat(25, 180, 2)
+
+    // 分时电量占比
+    const sharpShare = getRandomFloat(0.08, 0.18, 4)
+    const peakShare = getRandomFloat(0.22, 0.34, 4)
+    const flatShare = getRandomFloat(0.20, 0.30, 4)
+    const shareTotal = sharpShare + peakShare + flatShare
+    const valleyShare = Math.max(0, Number((1 - shareTotal).toFixed(4)))
+
+    const sharpPower = Number((totalBusCharging * sharpShare).toFixed(2))
+    const peakPower = Number((totalBusCharging * peakShare).toFixed(2))
+    const flatPower = Number((totalBusCharging * flatShare).toFixed(2))
+    const valleyPower = Number((totalBusCharging - sharpPower - peakPower - flatPower).toFixed(2))
     // 单车日均充电量 = 总公交充电量 ÷ 实际充电车台数 ÷ 31
     const dailyPerBusCharging = actualChargingBusCount > 0
       ? (totalBusCharging / actualChargingBusCount / 31).toFixed(2)
       : '0.00'
+
+    // 平均单车能耗（kWh/km）
+    const avgEnergyPerKm = totalMileage > 0
+      ? Number((totalBusCharging / totalMileage).toFixed(2))
+      : 0
+
+    // 平均输出功率（kW/枪）
+    const avgOutputPowerPerGun = gunCount > 0 && chargingTotalDuration > 0
+      ? Number((totalBusCharging / chargingTotalDuration / gunCount).toFixed(2))
+      : 0
+
+    // 平均每车日充电时长(h)
+    const avgDailyChargeDuration = chargingVehicleDays > 0
+      ? Number((chargingTotalDuration / chargingVehicleDays).toFixed(2))
+      : 0
+
+    const monthDays = new Date(Number(month.split('-')[0]), Number(month.split('-')[1]), 0).getDate()
+
+    // 谷时段公交剩余可用时间(枪·时/日)
+    const valleyRemainingTime = Math.max(
+      0,
+      Number((
+        6.5 * gunCount
+        - ((valleyOverlapDuration + windowBusCount * 0.25) / monthDays)
+      ).toFixed(2))
+    )
+
+    // 应急可解决车台数(台/日)
+    const emergencyBusCount = avgDailyChargeDuration + 0.25 > 0
+      ? Number((valleyRemainingTime / (avgDailyChargeDuration + 0.25)).toFixed(2))
+      : 0
 
     return {
       ...station,
@@ -59,6 +123,24 @@ const generateMonthData = (month) => {
       plannedMoveCount,
       actualChargingBusCount,
       totalBusCharging,
+      totalMileage,
+      avgEnergyPerKm,
+      avgOutputPowerPerGun,
+      chargingTotalDuration,
+      avgDailyChargeDuration,
+      gunCount,
+      chargingVehicleDays,
+      valleyOverlapDuration,
+      windowBusCount,
+      valleyRemainingTime,
+      emergencyBusCount,
+      sharpPower,
+      peakPower,
+      flatPower,
+      valleyPower,
+      valleyShare,
+      flatRatio: Number(((flatPower / totalBusCharging) * 100).toFixed(2)),
+      valleyRatio: Number(((valleyPower / totalBusCharging) * 100).toFixed(2)),
       dailyPerBusCharging,
     }
   })
@@ -69,13 +151,25 @@ const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-48' },
   { key: 'month', title: '月份', width: 'w-20' },
-  { key: 'totalBusCount', title: '夜停车台数', width: 'w-20', editable: true },
-  { key: 'maxChargingCapacity', title: '最大充电产能(台)', width: 'w-32', editable: true },
-  { key: 'chargingBusCount', title: '充电车台数', width: 'w-20' },
-  { key: 'plannedMoveCount', title: '计划挪车车台数', width: 'w-24', editable: true },
-  { key: 'actualChargingBusCount', title: '实际充电车台数(平台VIN)', width: 'w-36' },
-  { key: 'totalBusCharging', title: '总公交充电量(kWh)', width: 'w-28' },
-  { key: 'dailyPerBusCharging', title: '单车日均充电量(kWh)', width: 'w-28' },
+  { key: 'totalBusCount', title: '夜停车台数', width: 'w-20', editable: true, tip: '夜间停放在本站的公交车台数。' },
+  { key: 'maxChargingCapacity', title: '最大充电产能(台)', width: 'w-32', editable: true, tip: '最大可同时服务的公交车台数。' },
+  { key: 'chargingBusCount', title: '充电车台数', width: 'w-20', tip: '归属本站4518档案的公交车辆数量。' },
+  { key: 'plannedMoveCount', title: '计划挪车车台数', width: 'w-24', editable: true, tip: '计划挪车的公交车台数。' },
+  { key: 'actualChargingBusCount', title: '实际充电车台数', width: 'w-36', tip: '当月在本站产生充电记录的去重车辆数。' },
+  { key: 'totalBusCharging', title: '总公交充电量(kWh)', width: 'w-28', tip: '公交车辆当月总充电量。' },
+  { key: 'dailyPerBusCharging', title: '单车日均充电量(kWh)', width: 'w-28', tip: '总公交充电量 ÷ 实际充电车台数 ÷ 月天数。' },
+  { key: 'totalMileage', title: '总里程(km)', width: 'w-24', tip: '主充本站车队当月 GPS 总里程。' },
+  { key: 'avgEnergyPerKm', title: '平均单车能耗(kWh/km)', width: 'w-32', tip: '总充电量 ÷ 总里程。' },
+  { key: 'avgOutputPowerPerGun', title: '平均输出功率(kW/枪)', width: 'w-32', tip: '总充电量 ÷ 充电总时长 ÷ 枪数。' },
+  { key: 'avgDailyChargeDuration', title: '平均每车日充电时长(h)', width: 'w-32', tip: '充电总时长 ÷ 充电车日数。' },
+  { key: 'valleyRemainingTime', title: '谷时段公交剩余可用时间(枪·时/日)', width: 'w-40', tip: '6.5h×枪数减去谷窗口占用后按自然月天数折算。' },
+  { key: 'emergencyBusCount', title: '应急可解决车台数(台/日)', width: 'w-36', tip: '谷剩余 ÷（平均每车日充电时长 + 15分钟挪车）。' },
+  { key: 'sharpPower', title: '尖电量', width: 'w-20', tip: '公交订单尖时段电量合计。' },
+  { key: 'peakPower', title: '峰电量', width: 'w-20', tip: '公交订单峰时段电量合计。' },
+  { key: 'flatPower', title: '平电量', width: 'w-20', tip: '公交订单平时段电量合计。' },
+  { key: 'valleyPower', title: '谷电量', width: 'w-20', tip: '公交订单谷时段电量合计。' },
+  { key: 'valleyRatio', title: '谷占比', width: 'w-20', tip: '谷电量 ÷ 总充电量。' },
+  { key: 'flatRatio', title: '平占比', width: 'w-20', tip: '平电量 ÷ 总充电量。' },
 ]
 // ==================== 格式化函数====================
 const formatNumber = (value, decimals = 2) => {
@@ -83,6 +177,14 @@ const formatNumber = (value, decimals = 2) => {
   if (typeof value === 'string') return value
   return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value)
 }
+
+const formatPercent = (value) => {
+  if (value === null || value === undefined) return '-'
+  return `${formatNumber(value, 2)}%`
+}
+
+const integerFields = new Set(['totalBusCount', 'maxChargingCapacity', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'])
+const percentFields = new Set(['valleyRatio', 'flatRatio'])
 
 const normalizeIntegerValue = (value) => {
   const parsed = Number(value)
@@ -115,12 +217,9 @@ const StationBusOperation = () => {
   })
   const [selectedMonth, setSelectedMonth] = useState('2026-05')
   const [importModalOpen, setImportModalOpen] = useState(false)
-  const [manualModalOpen, setManualModalOpen] = useState(false)
   const [importMonth, setImportMonth] = useState('')
   const [importFile, setImportFile] = useState(null)
   const [importMessage, setImportMessage] = useState('')
-  const [editingStation, setEditingStation] = useState(null)
-  const [manualForm, setManualForm] = useState({ totalBusCount: '', plannedMoveCount: '', maxChargingCapacity: '' })
 
   // 月度数据存储
   const [monthlyData, setMonthlyData] = useState(() => {
@@ -138,43 +237,6 @@ const StationBusOperation = () => {
   const currentData = useMemo(() => {
     return monthlyData[selectedMonth] || generateMonthData(selectedMonth)
   }, [selectedMonth, monthlyData])
-
-  // 打开手动录入弹窗
-  const openManualModal = (station) => {
-    setEditingStation(station)
-    setManualForm({
-      totalBusCount: station.totalBusCount !== null ? station.totalBusCount : '',
-      plannedMoveCount: station.plannedMoveCount !== null ? station.plannedMoveCount : '',
-      maxChargingCapacity: station.maxChargingCapacity !== null ? station.maxChargingCapacity : '',
-    })
-    setManualModalOpen(true)
-  }
-
-  // 保存手动录入
-  const handleManualSave = () => {
-    if (!editingStation) return
-    const totalBus = normalizeIntegerValue(manualForm.totalBusCount)
-    const plannedMove = normalizeIntegerValue(manualForm.plannedMoveCount)
-    const maxChargingCapacity = normalizeIntegerValue(manualForm.maxChargingCapacity)
-
-    setMonthlyData(prev => {
-      const newData = { ...prev }
-      newData[selectedMonth] = newData[selectedMonth].map(station => {
-        if (station.code !== editingStation.code) return station
-        return {
-          ...station,
-          totalBusCount: totalBus,
-          plannedMoveCount: plannedMove,
-          maxChargingCapacity,
-        }
-      })
-      return newData
-    })
-
-    setManualModalOpen(false)
-    setEditingStation(null)
-    alert('保存成功！')
-  }
 
   // 导出
   const handleExport = (keys) => {
@@ -276,18 +338,11 @@ const StationBusOperation = () => {
           </div>
           <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
             <RefreshCw className="w-3 h-3 animate-spin" />
-            <span>自动统计字段实时更新</span>
+            <span>更新频率（T+1）</span>
           </div>
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
-            onClick={() => openManualModal(currentData[0])}
-            className="bg-primary text-white px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity"
-          >
-            <Edit3 className="w-4 h-4" />
-            手动录入
-          </button>
           <button
             onClick={() => { setImportMonth(''); setImportModalOpen(true) }}
             className="bg-primary text-white px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity"
@@ -355,7 +410,7 @@ const StationBusOperation = () => {
                         {isEditable ? (
                           <InlineEditableCell
                             value={value}
-                            displayValue={['totalBusCount', 'maxChargingCapacity', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'].includes(col.key) ? formatNumber(value, 0) : formatNumber(value)}
+                            displayValue={integerFields.has(col.key) ? formatNumber(value, 0) : formatNumber(value)}
                             placeholder="待填写"
                             inputType="number"
                             numeric
@@ -363,7 +418,9 @@ const StationBusOperation = () => {
                           />
                         ) : (
                           <span>{typeof value === 'number'
-                            ? formatNumber(value, ['totalBusCount', 'maxChargingCapacity', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'].includes(col.key) ? 0 : 2)
+                            ? percentFields.has(col.key)
+                              ? formatPercent(value)
+                              : formatNumber(value, integerFields.has(col.key) ? 0 : 2)
                             : value}</span>
                         )}
                       </td>
@@ -435,80 +492,6 @@ const StationBusOperation = () => {
         </div>
       </Modal>
 
-      {/* ========== 手动录入弹窗 ========== */}
-      <Modal isOpen={manualModalOpen} onClose={() => { setManualModalOpen(false); setEditingStation(null) }} title={`手动录入 - ${editingStation?.name || ''}`}>
-        <div className="space-y-4">
-          {/* 只读字段展示 */}
-          <div className="bg-gray-50 p-3 rounded text-sm text-gray-600">
-            <p className="font-medium mb-1 text-gray-800">站点信息</p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <p>站点编码：{editingStation?.code}</p>
-              <p>统计月份：{editingStation?.month}</p>
-            </div>
-          </div>
-
-          {/* 可编辑字段*/}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                夜停车台数
-              </label>
-              <input
-                type="number"
-                value={manualForm.totalBusCount}
-                onChange={(e) => setManualForm(prev => ({ ...prev, totalBusCount: e.target.value }))}
-                placeholder="请输入"
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                最大充电产能(台)
-              </label>
-              <input
-                type="number"
-                value={manualForm.maxChargingCapacity}
-                onChange={(e) => setManualForm(prev => ({ ...prev, maxChargingCapacity: e.target.value }))}
-                placeholder="请输入"
-                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                计划挪车车台数
-              </label>
-              <input
-                type="number"
-                value={manualForm.plannedMoveCount}
-                onChange={(e) => setManualForm(prev => ({ ...prev, plannedMoveCount: e.target.value }))}
-                placeholder="请输入"
-                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
-              />
-            </div>
-          </div>
-
-          {/* 提示 */}
-          <div className="bg-yellow-50 p-3 rounded text-sm text-yellow-800">
-            <p className="text-sm text-gray-500 mb-2">拖拽文件到此处，或点击上传</p>
-          </div>
-
-          {/* 操作按钮 */}
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              onClick={() => { setManualModalOpen(false); setEditingStation(null) }}
-              className="bg-white text-primary border border-primary px-4 py-2 rounded text-sm hover:opacity-90 transition-opacity"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleManualSave}
-              className="bg-primary text-white px-4 py-2 rounded text-sm hover:opacity-90 transition-opacity"
-            >
-              保存
-            </button>
-          </div>
-        </div>
-      </Modal>
     </div>
   )
 }

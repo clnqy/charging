@@ -185,7 +185,7 @@ const StationRevenue = () => {
           </div>
           <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
             <RefreshCw className="w-3 h-3 animate-spin" />
-            <span>自动统计字段实时更新</span>
+            <span>更新频率（T+1）</span>
           </div>
         </div>
 
