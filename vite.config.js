@@ -141,6 +141,7 @@ const requirementPlugin = () => ({
 })
 
 export default defineConfig({
+  base: '/charging/',
   plugins: [react(), requirementPlugin()],
   server: {
     port: 3000,
