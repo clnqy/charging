@@ -1,6 +1,7 @@
 ﻿import React, { useState, useMemo, useEffect } from 'react'
 import { Upload, Download, PlusCircle, Info, Check, X } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import DownloadCenterModal, { useDownloadCenter } from '../../components/DownloadCenter'
 
 // ==================== 基础数据定义 ====================
 const MONTHS = Array.from({ length: 12 }, (_, i) => ({ month: i + 1, label: `${i + 1}月` }))
@@ -50,6 +51,9 @@ const HistoricalElectricityPrice = () => {
   
   // 通知
   const [notification, setNotification] = useState(null)
+  const downloadCenter = useDownloadCenter({
+    templates: [{ id: 'electricity-template', name: '历史电价导入模板.xlsx', status: '可下载', operator: '系统', time: '2026-08-19 00:00:00', actionLabel: '下载' }],
+  })
   
   // 新增年度弹窗
   const [showAddYearModal, setShowAddYearModal] = useState(false)
@@ -406,7 +410,7 @@ const HistoricalElectricityPrice = () => {
   }
   
   // 导出、导入
-  const handleExport = () => showNotification('success', '导出成功!')
+  const handleExport = () => downloadCenter.createExportTask({ name: '历史电价导出.xlsx' })
   const handleImport = () => showNotification('success', '导入成功!')
   
   // 获取当前可见的图例
@@ -771,6 +775,7 @@ const HistoricalElectricityPrice = () => {
           </LineChart>
         </ResponsiveContainer>
       </div>
+      <DownloadCenterModal center={downloadCenter} />
     </div>
   )
 }

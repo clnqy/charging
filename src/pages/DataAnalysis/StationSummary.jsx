@@ -153,7 +153,7 @@ const StationSummary = () => {
   }
 
   const handleExportExcel = () => {
-    alert('导出Excel功能（前端原型模拟）')
+    return null
   }
 
   const handleFileChange = (e) => {
@@ -293,7 +293,7 @@ const StationSummary = () => {
             <Clock className="w-3 h-3" />
             <span>每月自动生成</span>
           </div>
-          <ReportFieldControls fields={reportFields} onExport={handleExportExcel} />
+          <ReportFieldControls fields={reportFields} onExport={handleExportExcel} exportFileName={`站点汇总表_${selectedMonth}.xlsx`} />
         </div>
       </div>
 

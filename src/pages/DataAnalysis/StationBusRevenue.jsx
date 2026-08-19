@@ -219,7 +219,7 @@ const StationBusRevenue = () => {
 
   // 导出
   const handleExport = (keys) => {
-    alert(`导出成功（已选择${keys.length}个字段，前端原型模拟）`)
+    void keys
   }
 
   const saveCellValue = (rowCode, colKey, nextValue) => {
@@ -295,7 +295,7 @@ const StationBusRevenue = () => {
             <Upload className="w-4 h-4" />
             Excel导入
           </button>
-          <ReportFieldControls fields={reportFields} onExport={handleExport} />
+          <ReportFieldControls fields={reportFields} onExport={handleExport} exportFileName={`单站公交营收明细表_${selectedMonth}.xlsx`} />
         </div>
       </div>
 

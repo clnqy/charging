@@ -2,6 +2,8 @@
 import { useNavigate } from 'react-router-dom'
 import { Database, Search, Upload, Download, Edit, Eye, AlertCircle, FileText, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Info, Columns3 } from 'lucide-react'
 import Modal from '../../components/Modal'
+import InlineEditableCell from '../DataAnalysis/InlineEditableCell'
+import DownloadCenterModal, { useDownloadCenter } from '../../components/DownloadCenter'
 
 const BUSINESS_STATUS_OPTIONS = ['\u8425\u4e1a\u4e2d', '\u6682\u505c\u8425\u4e1a', '\u505c\u4e1a']
 const BUSINESS_STATUS_OPTIONS_LABEL = '\u7ecf\u8425\u72b6\u6001'
@@ -14,6 +16,12 @@ const emptyFilters = {
 }
 
 const STATION_BASE_VISIBLE_COLUMNS_KEY = 'stationBaseVisibleColumns'
+
+const normalizeIntegerValue = (value) => {
+  if (value === '' || value === null || value === undefined) return null
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? Math.trunc(parsed) : null
+}
 
 // Tooltip悬浮提示组件
 const CellTooltip = ({ content, children }) => {
@@ -250,6 +258,7 @@ const enrichedStationData = mockStationData.map((station, index) => {
 
   return {
     ...station,
+    maxChargingCapacity: Math.max(1, Math.round(gunCount * (index % 3 === 0 ? 1.6 : 1.2))),
     businessHours: index % 4 === 0 ? '00:00-24:00' : '06:00-22:00',
     nightGunCount: Math.max(0, Math.floor(gunCount * (index % 3 === 0 ? 0.5 : 0.25))),
     equipmentPower,
@@ -265,6 +274,10 @@ const StationBase = () => {
   const [editingStation, setEditingStation] = useState(null)
   const [selectedStation, setSelectedStation] = useState(null)
   const [importFile, setImportFile] = useState(null)
+  const [stationData, setStationData] = useState(() => enrichedStationData)
+  const downloadCenter = useDownloadCenter({
+    templates: [{ id: 'station-template', name: '站点基础表导入模板.xlsx', status: '可下载', operator: '系统', time: '2026-08-19 00:00:00', actionLabel: '下载' }],
+  })
   
   // 分页状态
   const [currentPage, setCurrentPage] = useState(1)
@@ -281,6 +294,7 @@ const StationBase = () => {
     { key: 'commissionTime', name: '投运时间', width: 110 },
     { key: 'pileCount', name: '桩数量', width: 80 },
     { key: 'gunCount', name: '枪数量', width: 80 },
+    { key: 'maxChargingCapacity', name: '最大充电产能(台)', width: 130 },
     { key: 'coopMode', name: '经营模式', width: 130 },
     { key: 'coopUnit', name: '充电站合作单位', width: 200 },
     { key: 'businessStatus', name: BUSINESS_STATUS_OPTIONS_LABEL, width: 100 },
@@ -293,12 +307,12 @@ const StationBase = () => {
   
   // 自定义Hook实现列宽管理
   const displayColumnDefs = [
-    ...columnDefs.slice(0, 15),
+    ...columnDefs.slice(0, 16),
     { key: 'businessHours', name: '营业时间', width: 110 },
     { key: 'nightGunCount', name: '夜间开放枪数', width: 110 },
     { key: 'equipmentPower', name: '设备功率(kW)', width: 110 },
-    columnDefs[15],
-    { ...columnDefs[16], width: 120 },
+    columnDefs[16],
+    { ...columnDefs[17], width: 120 },
   ]
 
   const defaultVisibleColumnKeys = displayColumnDefs.map(col => col.key)
@@ -346,6 +360,7 @@ const StationBase = () => {
     commissionTime: '',
     pileCount: '',
     gunCount: '',
+    maxChargingCapacity: '',
     coopMode: '',
     coopUnit: '',
     businessStatus: '',
@@ -359,12 +374,12 @@ const StationBase = () => {
   })
 
   const operatorOptions = useMemo(() => (
-    [...new Set(enrichedStationData.map(item => item.coopUnit).filter(Boolean))]
-  ), [])
+    [...new Set(stationData.map(item => item.coopUnit).filter(Boolean))]
+  ), [stationData])
 
   const operationModeOptions = useMemo(() => (
-    [...new Set(enrichedStationData.map(item => item.coopMode).filter(Boolean))]
-  ), [])
+    [...new Set(stationData.map(item => item.coopMode).filter(Boolean))]
+  ), [stationData])
 
   const updateFilter = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }))
@@ -405,7 +420,7 @@ const StationBase = () => {
   const filteredData = useMemo(() => {
     const stationName = filters.stationName.trim().toLowerCase()
 
-    return enrichedStationData.filter(item => {
+    return stationData.filter(item => {
       const matchesName = !stationName || item.name.toLowerCase().includes(stationName)
       const matchesOperator = !filters.operator || item.coopUnit === filters.operator
       const matchesOperationMode = !filters.operationMode || item.coopMode === filters.operationMode
@@ -413,7 +428,7 @@ const StationBase = () => {
 
       return matchesName && matchesOperator && matchesOperationMode && matchesBusinessStatus
     })
-  }, [filters])
+  }, [filters, stationData])
   
   // 分页计算
   const totalPages = Math.ceil(filteredData.length / pageSize)
@@ -469,6 +484,7 @@ const StationBase = () => {
       commissionTime: station.commissionTime || '',
       pileCount: station.pileCount || '',
       gunCount: station.gunCount || '',
+      maxChargingCapacity: station.maxChargingCapacity ?? '',
       coopMode: station.coopMode || '',
       coopUnit: station.coopUnit || '',
       businessStatus: station.businessStatus || '',
@@ -485,10 +501,31 @@ const StationBase = () => {
 
   // 保存编辑
   const handleSaveEdit = () => {
-    // 模拟保存
+    if (!editingStation) return
+    const nextStation = {
+      ...editingStation,
+      ...editForm,
+      pileCount: normalizeIntegerValue(editForm.pileCount) ?? '',
+      gunCount: normalizeIntegerValue(editForm.gunCount) ?? '',
+      maxChargingCapacity: normalizeIntegerValue(editForm.maxChargingCapacity) ?? '',
+      nightGunCount: normalizeIntegerValue(editForm.nightGunCount) ?? '',
+      equipmentPower: normalizeIntegerValue(editForm.equipmentPower) ?? '',
+    }
+    setStationData((prev) => prev.map((station) => (
+      station.code === editingStation.code ? nextStation : station
+    )))
+    setSelectedStation((prev) => (prev && prev.code === editingStation.code ? nextStation : prev))
     alert('保存成功（前端原型模拟）')
     setEditModalOpen(false)
     setEditingStation(null)
+  }
+
+  const handleInlineSave = (stationCode, key, nextValue) => {
+    const normalized = normalizeIntegerValue(nextValue)
+    setStationData((prev) => prev.map((station) => (
+      station.code === stationCode ? { ...station, [key]: normalized ?? '' } : station
+    )))
+    setSelectedStation((prev) => (prev && prev.code === stationCode ? { ...prev, [key]: normalized ?? '' } : prev))
   }
 
   // 导入
@@ -500,7 +537,7 @@ const StationBase = () => {
 
   // 导出
   const handleExport = () => {
-    alert('导出成功（前端原型模拟）')
+    downloadCenter.createExportTask({ name: '站点基础表导出.xlsx' })
   }
   
   // 页面尺寸选择
@@ -802,11 +839,29 @@ const StationBase = () => {
                     </CellTooltip>
                   </td>
                   )}
+                  {/* 最大充电产能 */}
+                  {isColumnVisible('maxChargingCapacity') && (
+                  <td className="border-r border-gray-200 py-2 px-3"
+                      style={{
+                        width: columnWidths[9], minWidth: columnWidths[9], maxWidth: columnWidths[9],
+                        textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                      }}>
+                    <InlineEditableCell
+                      value={row.maxChargingCapacity}
+                      displayValue={row.maxChargingCapacity === null || row.maxChargingCapacity === undefined || row.maxChargingCapacity === '' ? '' : String(row.maxChargingCapacity)}
+                      placeholder="待填写"
+                      inputType="number"
+                      numeric
+                      onSave={(nextValue) => handleInlineSave(row.code, 'maxChargingCapacity', nextValue)}
+                      className="text-gray-800"
+                    />
+                  </td>
+                  )}
                   {/* 经营模式 */}
                   {isColumnVisible('coopMode') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[9], minWidth: columnWidths[9], maxWidth: columnWidths[9],
+                        width: columnWidths[10], minWidth: columnWidths[10], maxWidth: columnWidths[10],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.coopMode || ''}>
@@ -820,7 +875,7 @@ const StationBase = () => {
                   {isColumnVisible('coopUnit') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{
-                        width: columnWidths[10], minWidth: columnWidths[10], maxWidth: columnWidths[10],
+                        width: columnWidths[11], minWidth: columnWidths[11], maxWidth: columnWidths[11],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.coopUnit || ''}>
@@ -832,7 +887,7 @@ const StationBase = () => {
                   {isColumnVisible('businessStatus') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[11], minWidth: columnWidths[11], maxWidth: columnWidths[11],
+                        width: columnWidths[12], minWidth: columnWidths[12], maxWidth: columnWidths[12],
                         textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.businessStatus || ''}>
@@ -846,7 +901,7 @@ const StationBase = () => {
                   {isColumnVisible('managementUnit') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{
-                        width: columnWidths[12], minWidth: columnWidths[12], maxWidth: columnWidths[12],
+                        width: columnWidths[13], minWidth: columnWidths[13], maxWidth: columnWidths[13],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.managementUnit || ''}>
@@ -858,7 +913,7 @@ const StationBase = () => {
                   {isColumnVisible('dataSource') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[13], minWidth: columnWidths[13], maxWidth: columnWidths[13],
+                        width: columnWidths[14], minWidth: columnWidths[14], maxWidth: columnWidths[14],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.dataSource || ''}>
@@ -870,7 +925,7 @@ const StationBase = () => {
                   {isColumnVisible('fastSlow') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[14], minWidth: columnWidths[14], maxWidth: columnWidths[14],
+                        width: columnWidths[15], minWidth: columnWidths[15], maxWidth: columnWidths[15],
                         textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.fastSlow || ''}>
@@ -884,7 +939,7 @@ const StationBase = () => {
                   {isColumnVisible('businessHours') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[15], minWidth: columnWidths[15], maxWidth: columnWidths[15],
+                        width: columnWidths[16], minWidth: columnWidths[16], maxWidth: columnWidths[16],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.businessHours || ''}>
@@ -895,7 +950,7 @@ const StationBase = () => {
                   {isColumnVisible('nightGunCount') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[16], minWidth: columnWidths[16], maxWidth: columnWidths[16],
+                        width: columnWidths[17], minWidth: columnWidths[17], maxWidth: columnWidths[17],
                         textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={String(row.nightGunCount ?? '')}>
@@ -906,7 +961,7 @@ const StationBase = () => {
                   {isColumnVisible('equipmentPower') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[17], minWidth: columnWidths[17], maxWidth: columnWidths[17],
+                        width: columnWidths[18], minWidth: columnWidths[18], maxWidth: columnWidths[18],
                         textAlign: 'right', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={String(row.equipmentPower || '')}>
@@ -917,7 +972,7 @@ const StationBase = () => {
                   {isColumnVisible('remark') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[18], minWidth: columnWidths[18], maxWidth: columnWidths[18],
+                        width: columnWidths[19], minWidth: columnWidths[19], maxWidth: columnWidths[19],
                         textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                       }}>
                     <CellTooltip content={row.remark || ''}>
@@ -929,7 +984,7 @@ const StationBase = () => {
                   {isColumnVisible('action') && (
                   <td className="border-r border-gray-200 py-2 px-3"
                       style={{ 
-                        width: columnWidths[19], minWidth: columnWidths[19], maxWidth: columnWidths[19],
+                        width: columnWidths[20], minWidth: columnWidths[20], maxWidth: columnWidths[20],
                         textAlign: 'center', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                         backgroundColor: 'inherit'
                       }}>
@@ -1225,6 +1280,16 @@ const StationBase = () => {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">最大充电产能（台）</label>
+              <input
+                type="number"
+                value={editForm.maxChargingCapacity}
+                onChange={(e) => setEditForm({ ...editForm, maxChargingCapacity: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                min="0"
+              />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">快/慢桩</label>
               <select
                 value={editForm.fastSlow}
@@ -1372,6 +1437,7 @@ const StationBase = () => {
           </div>
         </div>
       </Modal>
+      <DownloadCenterModal center={downloadCenter} />
     </div>
   )
 }

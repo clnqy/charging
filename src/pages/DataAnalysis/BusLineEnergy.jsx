@@ -195,7 +195,7 @@ const BusLineEnergy = () => {
 
   // 导出
   const handleExport = (keys) => {
-    alert('导出成功（已选择' + keys.length + '个字段，前端原型模拟）')
+    void keys
   }
 
   return (
@@ -240,7 +240,7 @@ const BusLineEnergy = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <ReportFieldControls fields={reportFields} onExport={handleExport} />
+          <ReportFieldControls fields={reportFields} onExport={handleExport} exportFileName={`公交线路用能明细表_${selectedMonth}.xlsx`} />
         </div>
       </div>
 

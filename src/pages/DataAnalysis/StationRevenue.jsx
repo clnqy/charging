@@ -142,7 +142,7 @@ const StationRevenue = () => {
 
   // 导出
   const handleExport = (keys) => {
-    alert('导出成功（已选择' + keys.length + '个字段，前端原型模拟）')
+    void keys
   }
 
   // 切换月份
@@ -190,7 +190,7 @@ const StationRevenue = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <ReportFieldControls fields={reportFields} onExport={handleExport} />
+          <ReportFieldControls fields={reportFields} onExport={handleExport} exportFileName={`单站月度营收明细表_${selectedMonth}.xlsx`} />
         </div>
       </div>
 

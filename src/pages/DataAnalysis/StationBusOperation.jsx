@@ -7,16 +7,16 @@ import FieldTooltip from '../../components/FieldTooltip'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
-  { code: 'YIM00100', name: '沙坪坝区陈家桥公交充电站' },
-  { code: 'YIM00200', name: '北区光亮天润城公交充电站' },
-  { code: 'YIM00300', name: '福佑路公交枢纽站' },
-  { code: 'YIM00301', name: '福佑路公交充电站扩建项目（V2G）' },
-  { code: 'YIM00302', name: '福佑路公交枢纽站二期' },
-  { code: 'YIM00400', name: '碚都佳园首末站' },
-  { code: 'YIM00500', name: '五里店公交站' },
-  { code: 'YIM00600', name: '渝中区菜园坝公交充电站' },
-  { code: 'YIM00700', name: '江北区观音桥公交充电站' },
-  { code: 'YIM00800', name: '南岸区南坪公交充电站' },
+  { code: 'YIM00100', name: '沙坪坝区陈家桥公交充电站', maxChargingCapacity: 68 },
+  { code: 'YIM00200', name: '北区光亮天润城公交充电站', maxChargingCapacity: 54 },
+  { code: 'YIM00300', name: '福佑路公交枢纽站', maxChargingCapacity: 72 },
+  { code: 'YIM00301', name: '福佑路公交充电站扩建项目（V2G）', maxChargingCapacity: 36 },
+  { code: 'YIM00302', name: '福佑路公交枢纽站二期', maxChargingCapacity: 42 },
+  { code: 'YIM00400', name: '碚都佳园首末站', maxChargingCapacity: 48 },
+  { code: 'YIM00500', name: '五里店公交站', maxChargingCapacity: 60 },
+  { code: 'YIM00600', name: '渝中区菜园坝公交充电站', maxChargingCapacity: 52 },
+  { code: 'YIM00700', name: '江北区观音桥公交充电站', maxChargingCapacity: 58 },
+  { code: 'YIM00800', name: '南岸区南坪公交充电站', maxChargingCapacity: 50 },
 ]
 // ==================== 生成某月模拟数据 ====================
 const generateMonthData = (month) => {
@@ -35,10 +35,8 @@ const generateMonthData = (month) => {
     const totalBusCount = null
     const plannedMoveCount = null
 
-    // 场站资产总功率（模拟值）
-    const totalPower = getRandom(50, 200)
-    // 最大充电产能（最大可以充多少台车）
-    const maxChargingCapacity = Math.round(totalPower * 744 * 0.85)
+    // 最大充电产能来源于站点基础表，不在本表手动维护
+    const maxChargingCapacity = station.maxChargingCapacity
 
     // 充电车台数（归属本站4518档案的公交车辆数量）
     const chargingBusCount = getRandom(30, 80)
@@ -152,7 +150,7 @@ const columns = [
   { key: 'name', title: '站点', width: 'w-48' },
   { key: 'month', title: '月份', width: 'w-20' },
   { key: 'totalBusCount', title: '夜停车台数', width: 'w-20', editable: true, tip: '夜间停放在本站的公交车台数。' },
-  { key: 'maxChargingCapacity', title: '最大充电产能(台)', width: 'w-32', editable: true, tip: '最大可同时服务的公交车台数。' },
+  { key: 'maxChargingCapacity', title: '最大充电产能(台)', width: 'w-32', tip: '来源于站点基础表，不支持手动修改。' },
   { key: 'chargingBusCount', title: '充电车台数', width: 'w-20', tip: '归属本站4518档案的公交车辆数量。' },
   { key: 'plannedMoveCount', title: '计划挪车车台数', width: 'w-24', editable: true, tip: '计划挪车的公交车台数。' },
   { key: 'actualChargingBusCount', title: '实际充电车台数', width: 'w-36', tip: '当月在本站产生充电记录的去重车辆数。' },
@@ -240,7 +238,7 @@ const StationBusOperation = () => {
 
   // 导出
   const handleExport = (keys) => {
-    alert(`导出成功（已选择${keys.length}个字段，前端原型模拟）`)
+    void keys
   }
 
   const handleImportFile = async (file) => {
@@ -265,7 +263,6 @@ const StationBusOperation = () => {
           return {
             ...station,
             totalBusCount: normalizeIntegerValue(matched['夜停车台数']),
-            maxChargingCapacity: normalizeIntegerValue(matched['最大充电产能']) ?? station.maxChargingCapacity,
             chargingBusCount: normalizeIntegerValue(matched['充电车台数']) ?? station.chargingBusCount,
             plannedMoveCount: normalizeIntegerValue(matched['计划挪车车台数']),
             actualChargingBusCount: normalizeIntegerValue(matched['实际充电车台数(平台VIN)']) ?? station.actualChargingBusCount,
@@ -292,7 +289,7 @@ const StationBusOperation = () => {
       ...prev,
       [selectedMonth]: prev[selectedMonth].map(station => (
         station.code === rowCode
-          ? { ...station, [colKey]: ['totalBusCount', 'maxChargingCapacity', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'].includes(colKey) ? normalizeIntegerValue(nextValue) : nextValue }
+          ? { ...station, [colKey]: ['totalBusCount', 'chargingBusCount', 'plannedMoveCount', 'actualChargingBusCount'].includes(colKey) ? normalizeIntegerValue(nextValue) : nextValue }
           : station
       ))
     }))
@@ -350,7 +347,7 @@ const StationBusOperation = () => {
             <Upload className="w-4 h-4" />
             Excel导入
           </button>
-          <ReportFieldControls fields={reportFields} onExport={handleExport} />
+          <ReportFieldControls fields={reportFields} onExport={handleExport} exportFileName={`单站公交运营明细表_${selectedMonth}.xlsx`} />
         </div>
       </div>
 
@@ -483,7 +480,8 @@ const StationBusOperation = () => {
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>文件格式：.csv（首行表头）</li>
               <li>必须包含列：站点编码、夜停车台数、计划挪车车台数</li>
-              <li>可选列：最大充电产能、充电车台数、实际充电车台数(平台VIN)、总公交充电量(kWh)、单车日均充电量(kWh)</li>
+              <li>可选列：充电车台数、实际充电车台数(平台VIN)、总公交充电量(kWh)、单车日均充电量(kWh)</li>
+              <li>最大充电产能来源于站点基础表，不通过本表导入或手动修改</li>
               <li>站点编码用于匹配数据</li>
               <li>导入数据将绑定所选统计自然月存档</li>
             </ul>

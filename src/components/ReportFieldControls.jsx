@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react'
 import { Columns3, FileSpreadsheet } from 'lucide-react'
 import Modal from './Modal'
+import DownloadCenterModal, { useDownloadCenter } from './DownloadCenter'
 
 const normalize = (groups) => groups.map((group) => ({
   ...group,
@@ -123,11 +124,12 @@ const CheckboxGroup = ({ groups, checkedKeys, setCheckedKeys, fixedKeys = [] }) 
   )
 }
 
-const ReportFieldControls = ({ fields, onExport, className = '' }) => {
+const ReportFieldControls = ({ fields, onExport, className = '', showExport = true, exportFileName = '数据导出.xlsx', exportTemplates }) => {
   const [columnOpen, setColumnOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
   const [draftVisible, setDraftVisible] = useState(fields.visibleKeys)
   const [draftExport, setDraftExport] = useState(fields.exportKeys)
+  const downloadCenter = useDownloadCenter({ templates: exportTemplates })
 
   const openColumns = () => {
     setDraftVisible(fields.visibleKeys)
@@ -141,10 +143,12 @@ const ReportFieldControls = ({ fields, onExport, className = '' }) => {
 
   return (
     <>
-      <button onClick={openExport} className={`bg-white text-primary border border-primary px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity ${className}`}>
-        <FileSpreadsheet className="w-4 h-4" />
-        导出
-      </button>
+      {showExport && (
+        <button onClick={openExport} className={`bg-white text-primary border border-primary px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity ${className}`}>
+          <FileSpreadsheet className="w-4 h-4" />
+          导出
+        </button>
+      )}
       <button onClick={openColumns} className={`bg-white text-primary border border-primary px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity ${className}`}>
         <Columns3 className="w-4 h-4" />
         列设置
@@ -164,9 +168,22 @@ const ReportFieldControls = ({ fields, onExport, className = '' }) => {
         <CheckboxGroup groups={fields.groups} checkedKeys={draftExport} setCheckedKeys={setDraftExport} fixedKeys={[]} />
         <div className="flex justify-end gap-3 pt-4 mt-4 border-t border-gray-200">
           <button onClick={() => setExportOpen(false)} className="btn-secondary text-sm">取消</button>
-          <button onClick={() => { fields.setExportKeys(draftExport); onExport?.(draftExport); setExportOpen(false) }} className="btn-primary text-sm">导出</button>
+          <button
+            onClick={() => {
+              fields.setExportKeys(draftExport)
+              onExport?.(draftExport)
+              downloadCenter.createExportTask({
+                name: typeof exportFileName === 'function' ? exportFileName(draftExport) : exportFileName,
+              })
+              setExportOpen(false)
+            }}
+            className="btn-primary text-sm"
+          >
+            导出
+          </button>
         </div>
       </Modal>
+      <DownloadCenterModal center={downloadCenter} />
     </>
   )
 }

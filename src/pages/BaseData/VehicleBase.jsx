@@ -13,6 +13,7 @@ import {
   Upload,
 } from 'lucide-react'
 import Modal from '../../components/Modal'
+import DownloadCenterModal, { useDownloadCenter } from '../../components/DownloadCenter'
 
 const baseColumns = [
   { key: 'stationName', name: '站点名称', width: 150 },
@@ -123,6 +124,9 @@ const VehicleBase = () => {
   const [importFile, setImportFile] = useState(null)
   const [exportKeys, setExportKeys] = useState(exportDefaultKeys)
   const [logs, setLogs] = useState([])
+  const downloadCenter = useDownloadCenter({
+    templates: [{ id: 'vehicle-template', name: '车辆基础表导入模板.xlsx', status: '可下载', operator: '系统', time: '2026-08-19 00:00:00', actionLabel: '下载' }],
+  })
   const [visibleKeys, setVisibleKeys] = useState(() => {
     const saved = localStorage.getItem('vehicleBaseVisibleColumns')
     return saved ? JSON.parse(saved) : allColumns.filter((item) => !item.hiddenDefault).map((item) => item.key)
@@ -486,7 +490,7 @@ const VehicleBase = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={modal === 'export'} onClose={() => setModal(null)} title="导出字段选择" onConfirm={() => { addLog('导出', `导出 ${exportKeys.length} 个字段`); setModal(null) }} confirmText="导出">
+      <Modal isOpen={modal === 'export'} onClose={() => setModal(null)} title="导出字段选择" onConfirm={() => { addLog('导出', `导出 ${exportKeys.length} 个字段`); downloadCenter.createExportTask({ name: '车辆基础表导出.xlsx' }); setModal(null) }} confirmText="导出">
         <div className="grid grid-cols-2 gap-2">
           {[...baseColumns, ...detailColumns].map((col) => (
             <label key={col.key} className="flex items-center gap-2 text-sm text-gray-700">
@@ -507,6 +511,8 @@ const VehicleBase = () => {
           ))}
         </div>
       </Modal>
+
+      <DownloadCenterModal center={downloadCenter} />
     </div>
   )
 }

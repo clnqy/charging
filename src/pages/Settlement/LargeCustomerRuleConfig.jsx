@@ -207,6 +207,7 @@ const LargeCustomerRuleConfig = () => {
   const [logs, setLogs] = useState([])
   const [stationTreeOpen, setStationTreeOpen] = useState(false)
   const [stationDropdownOpen, setStationDropdownOpen] = useState(false)
+  const [stationKeyword, setStationKeyword] = useState('')
   const [widths, setWidths] = useState(() => {
     const saved = localStorage.getItem('largeCustomerRuleWidths')
     return saved ? JSON.parse(saved) : Object.fromEntries(columns.map((col) => [col.key, col.width]))
@@ -220,6 +221,13 @@ const LargeCustomerRuleConfig = () => {
 
   const visibleColumns = reportFields.visibleColumns
   const allStationSelected = form.settlementStations.length === STATION_OPTIONS.length
+  const filteredStationOptions = useMemo(() => {
+    const keyword = stationKeyword.trim().toLowerCase()
+    if (!keyword) return STATION_OPTIONS
+    return STATION_OPTIONS.filter((station) => (
+      [station.name, station.code].some((value) => value.toLowerCase().includes(keyword))
+    ))
+  }, [stationKeyword])
 
   const addLog = (type, content) => {
     setLogs((prev) => [{ type, content, user: '当前用户', time: new Date().toLocaleString('zh-CN') }, ...prev].slice(0, 6))
@@ -289,6 +297,7 @@ const LargeCustomerRuleConfig = () => {
     setErrors({})
     setStationTreeOpen(false)
     setStationDropdownOpen(false)
+    setStationKeyword('')
     setModal('create')
   }
 
@@ -301,6 +310,7 @@ const LargeCustomerRuleConfig = () => {
     setErrors({})
     setStationTreeOpen(false)
     setStationDropdownOpen(false)
+    setStationKeyword('')
     setModal('edit')
   }
 
@@ -332,6 +342,7 @@ const LargeCustomerRuleConfig = () => {
       addLog('编辑', `编辑 ${normalized.customerName} 结算规则`)
     }
     setStationDropdownOpen(false)
+    setStationKeyword('')
     setModal(null)
   }
 
@@ -383,6 +394,14 @@ const LargeCustomerRuleConfig = () => {
       ...prev,
       settlementStations: allStationSelected ? [] : STATION_OPTIONS.map((station) => station.code),
     }))
+  }
+
+  const toggleStationDropdown = () => {
+    if (stationDropdownOpen) {
+      setStationKeyword('')
+      setStationTreeOpen(false)
+    }
+    setStationDropdownOpen((open) => !open)
   }
 
   const handleResizeStart = (event, key) => {
@@ -475,7 +494,7 @@ const LargeCustomerRuleConfig = () => {
             <button onClick={() => setRuleStatus(selectedIds, '停用')} className="btn-secondary text-sm flex items-center gap-1"><XCircle className="w-4 h-4" />批量停用</button>
           </div>
           <div className="flex items-center gap-2">
-            <ReportFieldControls fields={reportFields} onExport={(keys) => addLog('导出', `导出 ${keys.length} 个字段`)} />
+            <ReportFieldControls fields={reportFields} onExport={(keys) => addLog('导出', `导出 ${keys.length} 个字段`)} exportFileName="大客户结算规则导出.xlsx" />
           </div>
         </div>
       </div>
@@ -545,7 +564,7 @@ const LargeCustomerRuleConfig = () => {
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => setStationDropdownOpen((open) => !open)}
+                    onClick={toggleStationDropdown}
                     className={`w-full px-3 py-2 border rounded text-sm bg-white focus:outline-none focus:border-primary flex items-center justify-between gap-2 ${errors.settlementStations ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
                   >
                     <span className={`truncate ${form.settlementStations.length ? 'text-gray-700' : 'text-gray-400'}`}>
@@ -555,6 +574,19 @@ const LargeCustomerRuleConfig = () => {
                   </button>
                   {stationDropdownOpen && (
                     <div className="absolute z-40 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-64 overflow-auto p-2">
+                      <div className="flex items-center gap-2 px-2 py-2">
+                        <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={stationKeyword}
+                          onChange={(event) => {
+                            setStationKeyword(event.target.value)
+                            setStationTreeOpen(true)
+                          }}
+                          placeholder="搜索站点名称或编号"
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                        />
+                      </div>
                       <div className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded">
                         <button
                           type="button"
@@ -570,15 +602,19 @@ const LargeCustomerRuleConfig = () => {
                           <span className="text-xs text-gray-400">({STATION_OPTIONS.length})</span>
                         </label>
                       </div>
-                      {stationTreeOpen && (
+                      {(stationTreeOpen || stationKeyword.trim()) && (
                         <div className="ml-7 mt-1 space-y-1">
-                          {STATION_OPTIONS.map((station) => (
-                            <label key={station.code} className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 rounded cursor-pointer">
-                              <input type="checkbox" checked={form.settlementStations.includes(station.code)} onChange={() => toggleStation(station.code)} />
-                              <span className="truncate" title={`${station.name}（${station.code}）`}>{station.name}</span>
-                              <span className="text-xs text-gray-400 flex-shrink-0">{station.code}</span>
-                            </label>
-                          ))}
+                          {filteredStationOptions.length > 0 ? (
+                            filteredStationOptions.map((station) => (
+                              <label key={station.code} className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 rounded cursor-pointer">
+                                <input type="checkbox" checked={form.settlementStations.includes(station.code)} onChange={() => toggleStation(station.code)} />
+                                <span className="truncate" title={`${station.name}（${station.code}）`}>{station.name}</span>
+                                <span className="text-xs text-gray-400 flex-shrink-0">{station.code}</span>
+                              </label>
+                            ))
+                          ) : (
+                            <div className="px-2 py-2 text-sm text-gray-400">未找到匹配站点</div>
+                          )}
                         </div>
                       )}
                     </div>
