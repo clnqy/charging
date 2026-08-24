@@ -157,6 +157,10 @@ const BusLineEnergy = () => {
     return generateBusLineData(startDate, endDate)
   }, [startDate, endDate])
 
+  const exportFileName = useMemo(() => {
+    return `公交线路用能明细表_${startDate}_${endDate}.xlsx`
+  }, [startDate, endDate])
+
   // 汇总行数据
   const summaryRow = useMemo(() => {
     const daysDiff = getDaysBetween(startDate, endDate)
@@ -240,7 +244,7 @@ const BusLineEnergy = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <ReportFieldControls fields={reportFields} onExport={handleExport} exportFileName={`公交线路用能明细表_${selectedMonth}.xlsx`} />
+          <ReportFieldControls fields={reportFields} onExport={handleExport} exportFileName={exportFileName} />
         </div>
       </div>
 
