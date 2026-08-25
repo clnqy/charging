@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import InlineEditableCell from './InlineEditableCell'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import FieldTooltip from '../../components/FieldTooltip'
+import MonthPicker from './MonthPicker'
 
 // 基础站点数据（不含可研收入和目标收入）
 const baseStationData = [
@@ -264,15 +265,7 @@ const StationSummary = () => {
         <div className="flex items-center gap-6 flex-wrap">
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 whitespace-nowrap">统计月份</label>
-            <select 
-              value={selectedMonth}
-              onChange={(e) => handleMonthChange(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
-            >
-              {getMonthOptions().map(month => (
-                <option key={month} value={month}>{month}</option>
-              ))}
-            </select>
+            <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
           </div>
 
           <div className="flex items-center gap-1 text-xs text-success bg-green-50 px-3 py-1.5 rounded-full">

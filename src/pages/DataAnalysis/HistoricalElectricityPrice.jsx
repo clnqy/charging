@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo, useEffect } from 'react'
-import { Upload, Download, PlusCircle, Info, Check, X } from 'lucide-react'
+import { Upload, Download, PlusCircle, Info, Check, X, Calendar, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import DownloadCenterModal, { useDownloadCenter } from '../../components/DownloadCenter'
 
@@ -57,8 +57,13 @@ const HistoricalElectricityPrice = () => {
   
   // 新增年度弹窗
   const [showAddYearModal, setShowAddYearModal] = useState(false)
+  const [showAddYearPicker, setShowAddYearPicker] = useState(false)
   const [newYearInput, setNewYearInput] = useState('')
   const [yearInputError, setYearInputError] = useState('')
+  const [addYearPanelStart, setAddYearPanelStart] = useState(() => {
+    const newestYear = Math.max(...allYears)
+    return Math.floor(newestYear / 10) * 10
+  })
   
   // 持久化筛选状态到localStorage
   useEffect(() => {
@@ -93,41 +98,37 @@ const HistoricalElectricityPrice = () => {
   
   // 下拉框多选状态
   const [showYearDropdown, setShowYearDropdown] = useState(false)
+  const [yearPanelStart, setYearPanelStart] = useState(() => {
+    const newestYear = Math.max(...allYears)
+    return Math.floor(newestYear / 10) * 10
+  })
   
   // 处理年度选项切换
   const handleYearToggle = (year) => {
     toggleYear(year)
   }
   
-  // 渲染下拉框选项
-  const renderYearOptions = () => {
-    return allYears.map(year => {
-      const isSelected = selectedYears.includes(year)
-      return (
-        <div
-          key={year}
-          onClick={() => handleYearToggle(year)}
-          className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors ${
-            isSelected ? 'bg-blue-50' : ''
-          }`}
-        >
-          <div className={`w-4 h-4 border-2 rounded flex items-center justify-center transition-all ${
-            isSelected ? 'bg-primary border-primary' : 'border-gray-300'
-          }`}>
-            {isSelected && <Check className="w-3 h-3 text-white" />}
-          </div>
-          <span className={`text-sm ${isSelected ? 'font-semibold text-primary' : 'text-gray-700'}`}>
-            {year}
-          </span>
-        </div>
-      )
-    })
-  }
+  // 渲染年份面板（十年视图，首尾为相邻年份占位）
+  const yearPanelYears = useMemo(() => {
+    return [
+      yearPanelStart - 1,
+      ...Array.from({ length: 10 }, (_, index) => yearPanelStart + index),
+      yearPanelStart + 10,
+    ]
+  }, [yearPanelStart])
+
+  const addYearPanelYears = useMemo(() => {
+    return [
+      addYearPanelStart - 1,
+      ...Array.from({ length: 10 }, (_, index) => addYearPanelStart + index),
+      addYearPanelStart + 10,
+    ]
+  }, [addYearPanelStart])
   
   // 验证年度输入
   const validateYearInput = (value) => {
     if (!value || value.trim() === '') {
-      setYearInputError('请输入年度')
+      setYearInputError('请选择年度')
       return false
     }
     if (!/^\d{4}$/.test(value)) {
@@ -144,6 +145,15 @@ const HistoricalElectricityPrice = () => {
   }
   
   // 新增年度
+  const openAddYearModal = () => {
+    const newestYear = Math.max(...allYears)
+    setAddYearPanelStart(Math.floor(newestYear / 10) * 10)
+    setNewYearInput('')
+    setYearInputError('')
+    setShowAddYearPicker(false)
+    setShowAddYearModal(true)
+  }
+
   const handleAddYear = () => {
     if (!validateYearInput(newYearInput)) return
     
@@ -167,6 +177,7 @@ const HistoricalElectricityPrice = () => {
     setSelectedYears(prev => [...prev, newYear].sort((a, b) => b - a))
     setNewYearInput('')
     setYearInputError('')
+    setShowAddYearPicker(false)
     setShowAddYearModal(false)
     showNotification('success', `已添加年度 ${newYear}`)
   }
@@ -379,25 +390,28 @@ const HistoricalElectricityPrice = () => {
     () => selectedYears.filter(year => chartYears.includes(year)),
     [selectedYears, chartYears]
   )
+
+  const visibleChartYears = useMemo(
+    () => allYears.filter(year => selectedYears.includes(year) && chartYears.includes(year)),
+    [allYears, selectedYears, chartYears]
+  )
   
   // 生成图表数据（使用新数据结构：priceData[year][period][month]）
   const chartData = useMemo(() => {
     return MONTHS.map(m => {
       const point = { month: m.label }
-      allYears.forEach(year => {
-        if (chartYears.includes(year)) {
-          chartPeriods.forEach(period => {
-            const value = priceData[year]?.[period]?.[m.month] || 0
-            point[`${year}-${period}`] = parseFloat(value) || 0
-          })
-        }
+      visibleChartYears.forEach(year => {
+        chartPeriods.forEach(period => {
+          const value = priceData[year]?.[period]?.[m.month] || 0
+          point[`${year}-${period}`] = parseFloat(value) || 0
+        })
       })
       return point
     })
-  }, [priceData, allYears, chartYears, chartPeriods])
+  }, [priceData, visibleChartYears, chartPeriods])
   
   // 计算线条粗细
-  const totalLines = chartYears.length * chartPeriods.length
+  const totalLines = visibleChartYears.length * chartPeriods.length
   const strokeWidth = totalLines > 8 ? 1.5 : totalLines > 4 ? 2 : 2.5
   
   // 年份颜色深浅（同色系）
@@ -415,16 +429,8 @@ const HistoricalElectricityPrice = () => {
   
   // 获取当前可见的图例
   const visibleLegends = useMemo(() => {
-    const legends = []
-    currentPageYears.forEach(year => {
-      if (chartYears.includes(year)) {
-        chartPeriods.forEach(period => {
-          legends.push(`${year}年${period}`)
-        })
-      }
-    })
-    return legends
-  }, [currentPageYears, chartYears, chartPeriods])
+    return visibleChartYears.flatMap(year => chartPeriods.map(period => `${year}-${period}`))
+  }, [visibleChartYears, chartPeriods])
   
   return (
     <div className="page-container h-full flex flex-col min-h-0 overflow-hidden">
@@ -444,30 +450,110 @@ const HistoricalElectricityPrice = () => {
             <h3 className="text-lg font-bold text-gray-800 mb-4">新增年度列</h3>
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                请输入年度<span className="text-red-500">*</span>
+                选择年度<span className="text-red-500">*</span>
               </label>
-              <input
-                type="text"
-                value={newYearInput}
-                onChange={(e) => {
-                  setNewYearInput(e.target.value)
-                  if (yearInputError) setYearInputError('')
-                }}
-                placeholder="如：2027"
-                className={`w-full px-3 py-2 border ${yearInputError ? 'border-red-500' : 'border-gray-200'} rounded text-sm focus:outline-none focus:border-primary`}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleAddYear()
-                  if (e.key === 'Escape') { setShowAddYearModal(false); setYearInputError(''); }
-                }}
-                autoFocus
-              />
+              <div className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowAddYearPicker(prev => !prev)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleAddYear()
+                    if (e.key === 'Escape') {
+                      setShowAddYearPicker(false)
+                      setShowAddYearModal(false)
+                      setYearInputError('')
+                    }
+                  }}
+                  className={`w-full h-10 px-3 border rounded-md bg-white text-left text-sm flex items-center justify-between shadow-sm transition-colors ${
+                    yearInputError
+                      ? 'border-red-500'
+                      : showAddYearPicker
+                        ? 'border-primary ring-2 ring-blue-100'
+                        : 'border-gray-200 hover:border-primary'
+                  }`}
+                >
+                  <span className={newYearInput ? 'text-gray-700' : 'text-gray-400'}>
+                    {newYearInput || '选择年份'}
+                  </span>
+                  <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                </button>
+
+                {showAddYearPicker && (
+                  <div className="absolute top-full left-0 mt-1 w-[280px] bg-white rounded-md shadow-xl z-[10000] border border-gray-100 overflow-hidden">
+                    <div className="h-12 px-3 flex items-center justify-between border-b border-gray-100">
+                      <button
+                        type="button"
+                        onClick={() => setAddYearPanelStart(prev => prev - 10)}
+                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-50 text-gray-400"
+                        title="上一年代"
+                      >
+                        <ChevronsLeft className="w-4 h-4" />
+                      </button>
+                      <span className="text-sm font-medium text-gray-700">
+                        {addYearPanelStart}-{addYearPanelStart + 9}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAddYearPanelStart(prev => prev + 10)}
+                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-50 text-gray-400"
+                        title="下一年代"
+                      >
+                        <ChevronsRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <div className="grid grid-cols-3 gap-y-5 px-7 py-6">
+                      {addYearPanelYears.map(year => {
+                        const isOutsideDecade = year < addYearPanelStart || year > addYearPanelStart + 9
+                        const isExisting = allYears.includes(year)
+                        const isSelected = Number(newYearInput) === year
+                        const isDisabled = isOutsideDecade || isExisting
+
+                        return (
+                          <button
+                            key={year}
+                            type="button"
+                            disabled={isDisabled}
+                            onClick={() => {
+                              setNewYearInput(String(year))
+                              setYearInputError('')
+                              setShowAddYearPicker(false)
+                            }}
+                            className={`relative h-8 text-sm transition-colors ${
+                              isDisabled
+                                ? 'text-gray-300 cursor-not-allowed'
+                                : isSelected
+                                  ? 'text-primary font-semibold'
+                                  : 'text-gray-600 hover:text-primary'
+                            }`}
+                            title={isExisting ? '该年度台账已存在' : undefined}
+                          >
+                            <span className={`inline-flex min-w-12 h-8 px-2 items-center justify-center rounded ${
+                              isSelected ? 'bg-blue-50' : ''
+                            }`}>
+                              {year}
+                            </span>
+                            {isSelected && (
+                              <span className="absolute right-3 top-1 inline-flex w-3.5 h-3.5 items-center justify-center rounded-full bg-primary">
+                                <Check className="w-2.5 h-2.5 text-white" />
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    <div className="px-3 py-2 border-t border-gray-100 bg-gray-50 text-xs text-gray-500">
+                      已有年度自动置灰，不可重复新增
+                    </div>
+                  </div>
+                )}
+              </div>
               {yearInputError && (
                 <p className="text-xs text-red-500 mt-1">{yearInputError}</p>
               )}
             </div>
             <div className="flex items-center justify-end gap-2">
               <button
-                onClick={() => { setShowAddYearModal(false); setYearInputError(''); }}
+                onClick={() => { setShowAddYearModal(false); setShowAddYearPicker(false); setYearInputError(''); }}
                 className="px-4 py-2 text-sm border border-gray-200 rounded hover:bg-gray-50"
               >
                 取消
@@ -483,56 +569,65 @@ const HistoricalElectricityPrice = () => {
         </div>
       )}
 
-      {/* ========== 顶部操作栏（12%高度）========= */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between flex-shrink-0" style={{ height: '12%' }}>
-        <div className="flex items-center gap-3 flex-wrap">
-          <button onClick={handleImport} className="btn-primary text-sm flex items-center gap-1">
-            <Upload className="w-4 h-4" /> Excel批量导入
-          </button>
-          <button onClick={handleExport} className="btn-secondary text-sm flex items-center gap-1">
-            <Download className="w-4 h-4" /> 导出全表
-          </button>
-          <button onClick={() => setShowAddYearModal(true)} className="btn-secondary text-sm flex items-center gap-1">
-            <PlusCircle className="w-4 h-4" /> 新增年度列
-          </button>
-        </div>
-        <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
-          <Info className="w-3 h-3" /> 所有单元格支持手动编辑，Enter键提交保存
+      {/* ========== 标题区 ========== */}
+      <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between flex-shrink-0" style={{ minHeight: 56 }}>
+        <h2 className="text-lg font-bold text-gray-800">历年供电电价台账</h2>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-3 py-1.5 rounded-full">
+            <Info className="w-3 h-3" /> 所有单元格支持手动编辑，Enter键提交保存
+          </div>
+          <span className="text-sm text-gray-500">数据最后更新：{new Date().toLocaleString('zh-CN')}</span>
         </div>
       </div>
 
-      {/* ========== 顶部年份选择区（5%高度）========= */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex-shrink-0 relative" style={{ height: '5%' }}>
-        <div className="flex items-center gap-3">
-          <span className="text-sm font-medium text-gray-700 whitespace-nowrap">显示年度:</span>
-          
-          {/* 下拉框多选*/}
-          <div className="relative flex-1">
-            {/* 触发器*/}
-            <button
+      {/* ========== 年份筛选与操作区 ========== */}
+      <div className="bg-white rounded-lg shadow-sm px-4 py-3 mb-3 flex-shrink-0 relative" style={{ minHeight: 64 }}>
+        <div className="flex items-center justify-between gap-4">
+          {/* 年份多选器*/}
+          <div className="relative w-[430px] flex-shrink-0">
+            <div
+              role="button"
+              tabIndex={0}
               onClick={() => setShowYearDropdown(!showYearDropdown)}
-              className="w-full px-3 py-2 border border-gray-300 rounded bg-white text-left text-sm flex items-center justify-between hover:border-primary transition-colors"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  setShowYearDropdown(!showYearDropdown)
+                }
+              }}
+              className={`min-h-9 w-full px-3 py-1.5 border rounded-md bg-white text-left text-sm flex items-center gap-2 shadow-sm transition-colors cursor-pointer ${
+                showYearDropdown
+                  ? 'border-primary ring-2 ring-blue-100'
+                  : 'border-gray-200 hover:border-primary'
+              }`}
             >
-              <div className="flex items-center gap-2 overflow-hidden">
+              <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-hidden">
                 {selectedYears.length === 0 ? (
-                  <span className="text-gray-400">请选择年度</span>
+                  <span className="text-gray-400 truncate">选择年份</span>
                 ) : (
-                  <div className="flex flex-wrap items-center gap-1">
-                    {selectedYears.slice(0, 3).map(year => (
-                      <span key={year} className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary text-white text-xs rounded-full">
-                        {year}
-                      </span>
-                    ))}
-                    {selectedYears.length > 3 && (
-                      <span className="text-xs text-gray-500">+{selectedYears.length - 3}</span>
-                    )}
-                  </div>
+                  selectedYears.map(year => (
+                    <span
+                      key={year}
+                      className="inline-flex h-6 max-w-[72px] flex-shrink-0 items-center gap-1 rounded bg-blue-50 px-2 text-xs font-medium text-primary"
+                    >
+                      <span className="truncate">{year}</span>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          toggleYear(year)
+                        }}
+                        className="rounded hover:bg-blue-100"
+                        title="取消选择"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
                 )}
               </div>
-              <svg className={`w-4 h-4 transition-transform ${showYearDropdown ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
+              <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+            </div>
             
             {/* 下拉内容 */}
             {showYearDropdown && (
@@ -543,62 +638,121 @@ const HistoricalElectricityPrice = () => {
                   onClick={() => setShowYearDropdown(false)}
                 />
                 
-                {/* 下拉面板 */}
-                <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded-lg shadow-lg z-[9999] max-h-48 overflow-y-auto">
-                  {/* 操作按钮 */}
-                  <div className="flex items-center gap-2 px-3 py-2 border-b border-gray-200 bg-gray-50">
+                {/* 年份面板 */}
+                <div className="absolute top-full left-0 mt-1 w-[280px] bg-white rounded-md shadow-xl z-[9999] border border-gray-100 overflow-hidden">
+                  <div className="h-12 px-3 flex items-center justify-between border-b border-gray-100">
                     <button 
-                      onClick={() => { setChartYears([...allYears].sort((a, b) => b - a)); setSelectedYears([...allYears].sort((a, b) => b - a)); }} 
-                      className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white text-gray-600 transition-colors"
+                      onClick={() => setYearPanelStart(prev => prev - 10)}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-50 text-gray-400"
+                      title="上一年代"
                     >
-                      全选
+                      <ChevronsLeft className="w-4 h-4" />
                     </button>
-                    <button 
-                      onClick={() => { setChartYears([]); setSelectedYears([]); }} 
-                      className="px-2 py-1 text-xs border border-gray-300 rounded hover:bg-white text-gray-600 transition-colors"
-                    >
-                      清空
-                    </button>
-                    <div className="flex-1"></div>
-                    <span className="text-xs text-gray-500">
-                      已选 {selectedYears.length}/{allYears.length} 个年度
+                    <span className="text-sm font-medium text-gray-700">
+                      {yearPanelStart}-{yearPanelStart + 9}
                     </span>
+                    <button 
+                      onClick={() => setYearPanelStart(prev => prev + 10)}
+                      className="w-7 h-7 flex items-center justify-center rounded hover:bg-gray-50 text-gray-400"
+                      title="下一年代"
+                    >
+                      <ChevronsRight className="w-4 h-4" />
+                    </button>
                   </div>
-                  
-                  {/* 年度选项 */}
-                  {renderYearOptions()}
+                  <div className="grid grid-cols-3 gap-y-5 px-7 py-6">
+                    {yearPanelYears.map(year => {
+                      const isOutsideDecade = year < yearPanelStart || year > yearPanelStart + 9
+                      const isAvailable = allYears.includes(year)
+                      const isSelected = selectedYears.includes(year)
+                      const isDisabled = isOutsideDecade || !isAvailable
+
+                      return (
+                        <button
+                          key={year}
+                          type="button"
+                          disabled={isDisabled}
+                          onClick={() => handleYearToggle(year)}
+                          className={`relative h-8 text-sm transition-colors ${
+                            isDisabled
+                              ? 'text-gray-300 cursor-not-allowed'
+                              : isSelected
+                                ? 'text-primary font-semibold'
+                                : 'text-gray-600 hover:text-primary'
+                          }`}
+                        >
+                          <span className={`inline-flex min-w-12 h-8 px-2 items-center justify-center rounded ${
+                            isSelected ? 'bg-blue-50' : ''
+                          }`}>
+                            {year}
+                          </span>
+                          {isSelected && (
+                            <span className="absolute right-3 top-1 inline-flex w-3.5 h-3.5 items-center justify-center rounded-full bg-primary">
+                              <Check className="w-2.5 h-2.5 text-white" />
+                            </span>
+                          )}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <div className="px-3 py-2 border-t border-gray-100 bg-gray-50 flex items-center justify-between">
+                    <span className="text-xs text-gray-500">
+                      已选 {selectedYears.length}/{allYears.length}
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={clearAllYears}
+                        className="px-2 py-1 text-xs text-gray-500 rounded hover:bg-white"
+                      >
+                        清空
+                      </button>
+                      <button
+                        onClick={selectAllYears}
+                        className="px-2 py-1 text-xs text-primary rounded hover:bg-white"
+                      >
+                        全选
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </>
             )}
           </div>
+          <button onClick={openAddYearModal} className="btn-secondary text-sm flex items-center gap-1 flex-shrink-0">
+            <PlusCircle className="w-4 h-4" /> 新增年度列
+          </button>
+
+          <div className="flex min-w-0 flex-1 items-center justify-end gap-3">
+            <div className="flex items-center gap-3 flex-wrap justify-end">
+              {/* <button onClick={handleImport} className="btn-primary text-sm flex items-center gap-1">
+                <Upload className="w-4 h-4" /> Excel批量导入
+              </button> */}
+              <button onClick={handleExport} className="btn-secondary text-sm flex items-center gap-1">
+                <Download className="w-4 h-4" /> 导出全表
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ========== 标题区（5%高度）========= */}
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-3 flex items-center justify-between flex-shrink-0" style={{ height: '5%' }}>
-        <h2 className="text-lg font-bold text-gray-800">历年供电电价台账</h2>
-        <span className="text-sm text-gray-500">数据最后更新：{new Date().toLocaleString('zh-CN')}</span>
-      </div>
-
-      {/* ========== 台账表格区域（32%高度）========= */}
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-shrink-0 mb-3" style={{ height: '32%' }}>
+      {/* ========== 台账表格区域（高度增加20%）========= */}
+      <div className="bg-white rounded-lg shadow-sm overflow-hidden flex-shrink-0 mb-3" style={{ height: '44%' }}>
         <div className="overflow-x-auto overflow-y-auto h-full">
           <table className="text-sm border-collapse">
             {/* 第一列：年度+时段 + 1-12月*/}
             <thead>
               <tr>
                 <th 
-                  className="px-3 py-2 border border-gray-300 bg-gray-100 text-center text-sm font-bold text-gray-700 sticky left-0 z-20 min-w-[80px]"
+                  className="px-3 py-2 border border-gray-300 bg-gray-100 text-center text-sm font-bold text-gray-700 sticky left-0 z-20 min-w-[100px]"
                 >
                   年度
                 </th>
                 <th 
-                  className="px-3 py-2 border border-gray-300 bg-gray-100 text-center text-sm font-bold text-gray-700 sticky left-[80px] z-20 min-w-[80px]"
+                  className="px-3 py-2 border border-gray-300 bg-gray-100 text-center text-sm font-bold text-gray-700 sticky left-[80px] z-20 min-w-[100px]"
                 >
                   时段
                 </th>
                 {MONTHS.map(m => (
-                  <th key={m.month} className="px-2 py-2 border border-gray-300 bg-gray-100 text-center text-xs font-bold text-gray-700 min-w-[80px]">
+                  <th key={m.month} className="px-2 py-2 border border-gray-300 bg-gray-100 text-center text-xs font-bold text-gray-700 min-w-[100px]">
                     {m.label}
                   </th>
                 ))}
@@ -671,26 +825,24 @@ const HistoricalElectricityPrice = () => {
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 whitespace-nowrap">年度:</span>
               <div className="flex items-center gap-1 flex-wrap">
-                <button onClick={selectAllYears} className="px-2 py-0.5 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
-                  全选
-                </button>
                 <button onClick={clearAllYears} className="px-2 py-0.5 text-xs border border-gray-300 rounded hover:bg-gray-50 text-gray-600">
                   清空
                 </button>
                 <div className="w-px h-4 bg-gray-300 mx-1"></div>
-                {allYears.map(year => (
-                  <button
-                    key={year}
-                    onClick={() => toggleYear(year)}
-                    className={`px-3 py-1 text-xs rounded transition-all ${
-                      chartYears.includes(year)
-                        ? 'bg-primary text-white font-semibold'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {year}
-                  </button>
-                ))}
+                {visibleChartYears.length === 0 ? (
+                  <span className="px-1 text-xs text-gray-400">暂无已选年度</span>
+                ) : (
+                  visibleChartYears.map(year => (
+                    <button
+                      key={year}
+                      onClick={() => toggleYear(year)}
+                      className="px-3 py-1 text-xs rounded bg-primary text-white font-semibold transition-all hover:opacity-90"
+                      title="取消选择"
+                    >
+                      {year}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
             
@@ -751,9 +903,9 @@ const HistoricalElectricityPrice = () => {
             />
             <Legend 
               wrapperStyle={{ fontSize: '12px' }}
-              formatter={(value) => visibleLegends.includes(value) ? value : null}
+              formatter={(value) => visibleLegends.includes(value) ? value.replace('-', '年') : null}
             />
-            {chartYears.flatMap(year => 
+            {visibleChartYears.flatMap(year => 
               chartPeriods.map(period => {
                 const key = `${year}-${period}`
                 const color = getYearColor(year, period)

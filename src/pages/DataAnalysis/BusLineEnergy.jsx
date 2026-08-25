@@ -1,7 +1,8 @@
-﻿import React, { useState, useMemo, useCallback } from 'react'
-import { Info, Calendar, Car } from 'lucide-react'
+﻿import React, { useState, useMemo } from 'react'
+import { Info, Car } from 'lucide-react'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import FieldTooltip from '../../components/FieldTooltip'
+import MonthPicker from './MonthPicker'
 
 // ==================== 模拟公交线路数据 ====================
 const generateBusLineData = (startDate, endDate) => {
@@ -19,20 +20,20 @@ const generateBusLineData = (startDate, endDate) => {
   }
 
   const busLines = [
-    '1', '2', '3', '4', '5',
-    '10', '11', '12', '15', '16',
-    '20', '21', '22', '25', '26',
-    '30', '31', '32', '33', '35',
+    '101', '28', '345', '454', '858',
+    '105', '11', '128', '151', '166',
+    '235', '211', '226', '825', '326',
+    '305', '831', '325', '339', '435',
   ]
 
   return busLines.map((line) => {
     // 车台数：该线路运营车辆数
     const vehicles = Math.round(getRandom(8, 30))
     
-    // 线路里程(km) - 按天数比例调整
+    // 运营里程(km) - 按天数比例调整
     const routeKm = Math.round(getRandom(30000, 120000) * (daysDiff / 30))
     
-    // 平均里程(km/车日) = 线路里程 ÷ 线路总出勤车日
+    // 平均里程(km/车日) = 运营里程 ÷ 线路总出勤车日
     const workDays = Math.round(daysDiff * getRandom(0.7, 1.0))
     const avgKm = routeKm / (vehicles * workDays)
     
@@ -49,12 +50,6 @@ const generateBusLineData = (startDate, endDate) => {
     // 驿满充电电量(kWh)
     const chargedKwh = Math.round(chargedKm * getRandom(0.6, 1.2))
     
-    // 驿满充电量(kWh/车日)
-    const chargedKwhPerDay = chargedKwh / (chargedVehicles * chargedWorkDays)
-    
-    // 每日充电电量(kWh) = 驿满充电电量 ÷ 筛选时段总自然天数
-    const dailyKwh = chargedKwh / daysDiff
-    
     // 平均能耗(kWh/km) = 驿满充电电量 ÷ 驿满充电里程
     const avgEnergy = chargedKm > 0 ? chargedKwh / chargedKm : 0
 
@@ -67,8 +62,6 @@ const generateBusLineData = (startDate, endDate) => {
       chargedKm,
       chargedAvgKm,
       chargedKwh,
-      chargedKwhPerDay,
-      dailyKwh,
       avgEnergy,
     }
   })
@@ -77,16 +70,14 @@ const generateBusLineData = (startDate, endDate) => {
 // ==================== 列定义====================
 const columns = [
   { key: 'line', title: '线路', width: 'w-20', frozen: true, note: '公交线路名称。' },
-  { key: 'vehicles', title: '车台数', width: 'w-16', note: '该线路统计时段内参与运营的车辆数量。' },
-  { key: 'routeKm', title: '线路里程(km)', width: 'w-28', note: '该线路在统计时段内的总运营里程。' },
-  { key: 'avgKm', title: '平均里程(km/车日)', width: 'w-28', note: '线路里程 ÷ 线路总出勤车日。' },
-  { key: 'chargedVehicles', title: '充电车台数', width: 'w-28', note: '统计时段内在驿满站点充电的车辆数量。' },
-  { key: 'chargedKm', title: '充电里程(km)', width: 'w-28', note: '使用充电服务后对应的车辆运营里程。' },
-  { key: 'chargedAvgKm', title: '充电平均里程(km/车日)', width: 'w-32', note: '充电里程 ÷ 充电车辆出勤车日。' },
-  { key: 'chargedKwh', title: '充电电量(kWh)', width: 'w-28', note: '统计时段内该线路在驿满站点的总充电电量。' },
-  { key: 'chargedKwhPerDay', title: '充电量(kWh/车日)', width: 'w-32', note: '充电电量 ÷ 充电车辆出勤车日。' },
-  { key: 'dailyKwh', title: '每日充电电量(kWh)', width: 'w-28', note: '充电电量 ÷ 统计时段自然天数。' },
-  { key: 'avgEnergy', title: '平均能耗(kWh/km)', width: 'w-28', highlighted: true, note: '充电电量 ÷ 充电里程，用于判断线路能耗水平。' },
+  { key: 'vehicles', title: '车台数', width: 'w-16', note: '该线路统计时段内参与运营的车辆数量。', decimals: 0 },
+  { key: 'routeKm', title: '运营里程(km)', width: 'w-28', note: '该线路在统计时段内的总运营里程。', decimals: 2 },
+  { key: 'avgKm', title: '平均里程(km/车日)', width: 'w-28', note: '运营里程 ÷ 线路总出勤车日。', decimals: 2 },
+  { key: 'chargedVehicles', title: '充电车台数', width: 'w-28', note: '统计时段内在驿满站点充电的车辆数量。', decimals: 0 },
+  { key: 'chargedKm', title: '充电里程(km)', width: 'w-28', note: '使用充电服务后对应的车辆运营里程。', decimals: 2 },
+  { key: 'chargedAvgKm', title: '充电平均里程(km/车日)', width: 'w-32', note: '充电里程 ÷ 充电车辆出勤车日。', decimals: 2 },
+  { key: 'chargedKwh', title: '充电量(kWh)', width: 'w-28', note: '统计时段内该线路在驿满站点的总充电电量。', decimals: 2 },
+  { key: 'avgEnergy', title: '平均能耗(kWh/km)', width: 'w-28', highlighted: true, note: '充电电量 ÷ 充电里程，用于判断线路能耗水平。', decimals: 4 },
 ]
 // ==================== 表头悬浮说明 ====================
 const columnTips = Object.fromEntries(columns.map((col) => [col.key, col.note || col.title]))
@@ -96,6 +87,12 @@ const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined || value === '') return '-'
   if (typeof value === 'string') return value
   return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value)
+}
+
+const formatCellValue = (value, column) => {
+  if (value === null || value === undefined || value === '') return '-'
+  if (typeof value !== 'number') return value
+  return formatNumber(value, column.decimals ?? 2)
 }
 
 // ==================== 能耗预警颜色====================
@@ -111,41 +108,29 @@ const isDataAbnormal = (row) => {
   return row.chargedKm === 0 && row.chargedKwh > 0
 }
 
-// ==================== 获取当月首日和末日====================
-const getFirstDayOfMonth = (date) => {
-  const d = new Date(date)
-  const year = d.getFullYear()
-  const month = d.getMonth()
-  return `${year}-${String(month + 1).padStart(2, '0')}-01`
+// ==================== 月份工具函数====================
+const getCurrentMonth = (date) => {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  return `${year}-${month}`
 }
 
-const getLastDayOfMonth = (date) => {
-  const d = new Date(date)
-  const year = d.getFullYear()
-  const month = d.getMonth()
-  const lastDay = new Date(year, month + 1, 0).getDate()
-  return `${year}-${String(month + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+const getMonthStartDate = (monthValue) => `${monthValue}-01`
+
+const getMonthEndDate = (monthValue) => {
+  const [year, month] = monthValue.split('-').map(Number)
+  const lastDay = new Date(year, month, 0).getDate()
+  return `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 }
 
-// ==================== 格式化日期显示====================
-const formatDateDisplay = (dateStr) => {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// ==================== 计算两个日期之间的天数====================
-const getDaysBetween = (startDate, endDate) => {
-  const start = new Date(startDate)
-  const end = new Date(endDate)
-  return Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1
-}
+const formatMonthDisplay = (monthValue) => monthValue.replace('-', '年') + '月'
 
 // ==================== 组件 ====================
 const BusLineEnergy = () => {
   const today = new Date()
-  const [startDate, setStartDate] = useState(getFirstDayOfMonth(today))
-  const [endDate, setEndDate] = useState(getLastDayOfMonth(today))
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth(today))
+  const startDate = useMemo(() => getMonthStartDate(selectedMonth), [selectedMonth])
+  const endDate = useMemo(() => getMonthEndDate(selectedMonth), [selectedMonth])
   const reportFields = useReportFields({
     storageKey: 'data-analysis:bus-line-energy',
     groups: [{ title: '能耗统计', columns }],
@@ -163,7 +148,6 @@ const BusLineEnergy = () => {
 
   // 汇总行数据
   const summaryRow = useMemo(() => {
-    const daysDiff = getDaysBetween(startDate, endDate)
     return {
       line: '汇总',
       vehicles: currentData.reduce((sum, r) => sum + r.vehicles, 0),
@@ -173,29 +157,9 @@ const BusLineEnergy = () => {
       chargedKm: currentData.reduce((sum, r) => sum + r.chargedKm, 0),
       chargedAvgKm: 0,
       chargedKwh: currentData.reduce((sum, r) => sum + r.chargedKwh, 0),
-      chargedKwhPerDay: 0,
-      dailyKwh: 0,
       avgEnergy: 0,
     }
-  }, [currentData, startDate, endDate])
-
-  // 切换开始日期
-  const handleStartDateChange = (date) => {
-    if (endDate && date > endDate) {
-      alert('开始日期不能晚于结束日期')
-      return
-    }
-    setStartDate(date)
-  }
-
-  // 切换结束日期
-  const handleEndDateChange = (date) => {
-    if (startDate && date < startDate) {
-      alert('结束日期不能早于开始日期')
-      return
-    }
-    setEndDate(date)
-  }
+  }, [currentData])
 
   // 导出
   const handleExport = (keys) => {
@@ -210,30 +174,10 @@ const BusLineEnergy = () => {
         style={{ height: '12%', minHeight: '80px' }}
       >
         <div className="flex items-center gap-6 flex-wrap">
-          {/* 开始日期选择 */}
+          {/* 月份筛选 */}
           <div className="flex items-center gap-2">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">统计时段</label>
-            <div className="flex items-center gap-2">
-              <div className="relative">
-                <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  className="pl-9 pr-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
-                />
-              </div>
-              <span className="text-gray-500">~</span>
-              <div className="relative">
-                <Calendar className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => handleEndDateChange(e.target.value)}
-                  className="pl-9 pr-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
-                />
-              </div>
-            </div>
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">统计月份</label>
+            <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
           </div>
 
           {/* 只读提示 */}
@@ -255,7 +199,7 @@ const BusLineEnergy = () => {
           <h2 className="text-lg font-bold text-gray-800">公交单线能耗表</h2>
         </div>
         <span className="text-sm text-gray-500">
-          统计时段：{formatDateDisplay(startDate)} ~ {formatDateDisplay(endDate)}
+          统计月份：{formatMonthDisplay(selectedMonth)}
         </span>
       </div>
 
@@ -300,7 +244,6 @@ const BusLineEnergy = () => {
                   >
                     {reportFields.visibleColumns.map(col => {
                       const value = row[col.key]
-                      const isNull = value === null || value === undefined || value === ''
                       
                       // 平均能耗列特殊样式
                       let cellStyle = ''
@@ -314,7 +257,7 @@ const BusLineEnergy = () => {
                           key={col.key}
                           className={`px-2 py-2 border-r border-gray-200 text-sm whitespace-nowrap align-middle ${cellStyle}`}
                         >
-                          {isNull ? '-' : (typeof value === 'number' ? formatNumber(value) : value)}
+                          {formatCellValue(value, col)}
                         </td>
                       )
                     })}
@@ -326,7 +269,6 @@ const BusLineEnergy = () => {
               <tr className="bg-blue-50 font-bold border-t-2 border-blue-200">
                 {reportFields.visibleColumns.map(col => {
                   const value = summaryRow[col.key]
-                  const isNull = value === null || value === undefined || value === ''
                   
                   // 汇总行平均能耗列
                   let cellStyle = ''
@@ -341,8 +283,7 @@ const BusLineEnergy = () => {
                       key={col.key}
                       className={`px-2 py-2 border-r border-gray-300 text-sm whitespace-nowrap align-middle ${cellStyle}`}
                     >
-                      {isNull ? '-' : 
-                       (typeof value === 'number' ? formatNumber(value, 0) : value)}
+                      {formatCellValue(value, col)}
                     </td>
                   )
                 })}

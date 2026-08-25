@@ -2,6 +2,7 @@
 import { FileSpreadsheet, AlertCircle, RefreshCw, Clock } from 'lucide-react'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import FieldTooltip from '../../components/FieldTooltip'
+import MonthPicker from './MonthPicker'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
@@ -167,15 +168,7 @@ const StationRevenue = () => {
           {/* 月份选择 */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 whitespace-nowrap">统计月份</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => handleMonthChange(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
-            >
-              {monthList.map(month => (
-                <option key={month} value={month}>{month}</option>
-              ))}
-            </select>
+            <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
           </div>
 
           {/* 状态提示*/}

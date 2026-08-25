@@ -22,15 +22,15 @@ const menuItems = [
     path: '/data-analysis/station-summary',
     highlight: true,
     children: [
-      { key: 'data-analysis-station-summary', label: '站点经营汇总表', path: '/data-analysis/station-summary' },
-      { key: 'data-analysis-station-revenue', label: '单站营收表', path: '/data-analysis/station-revenue' },
+      { key: 'data-analysis-station-summary', label: '站点经营汇总表 5 ', path: '/data-analysis/station-summary' },
+      { key: 'data-analysis-station-revenue', label: '单站营收表 4', path: '/data-analysis/station-revenue' },
       { key: 'data-analysis-station-bus-operation', label: '单站公交运营情况表', path: '/data-analysis/station-bus-operation' },
       { key: 'data-analysis-station-social-operation', label: '单站社会运营情况表', path: '/data-analysis/station-social-operation' },
       { key: 'data-analysis-station-bus-revenue', label: '站点公交收入表', path: '/data-analysis/station-bus-revenue' },
       { key: 'data-analysis-station-cost', label: '站点成本表', path: '/data-analysis/station-cost' },
       { key: 'data-analysis-station-social-revenue', label: '单站社会营收情况表', path: '/data-analysis/station-social-revenue' },
-      { key: 'data-analysis-bus-line-energy', label: '公交单线能耗表', path: '/data-analysis/bus-line-energy' },
-      { key: 'data-analysis-historical-electricity-price', label: '历年供电电价台账', path: '/data-analysis/historical-electricity-price' },
+      { key: 'data-analysis-bus-line-energy', label: '公交单线能耗表 3 ', path: '/data-analysis/bus-line-energy' },
+      { key: 'data-analysis-historical-electricity-price', label: '历年供电电价台账 2', path: '/data-analysis/historical-electricity-price' },
     ]
   },
   {
@@ -39,7 +39,7 @@ const menuItems = [
     label: '结算管理',
     path: '/settlement/large-customer-rules',
     children: [
-      { key: 'settlement-large-customer-rules', label: '大客户结算规则配置', path: '/settlement/large-customer-rules' },
+      { key: 'settlement-large-customer-rules', label: '大客户结算规则配置 1', path: '/settlement/large-customer-rules' },
     ]
   },
   {
@@ -76,9 +76,9 @@ const menuItems = [
     label: '基础数据管理',
     path: '/base-data/station',
     children: [
-      { key: 'base-data-station', label: '站点基础表', path: '/base-data/station' },
-      { key: 'base-data-vehicle', label: '站车基础表', path: '/base-data/vehicle' },
-      { key: 'base-data-order', label: '订单数据表', path: '/base-data/order' },
+      { key: 'base-data-station', label: '站点基础表 1', path: '/base-data/station' },
+      { key: 'base-data-vehicle', label: '站车基础表 1', path: '/base-data/vehicle' },
+      { key: 'base-data-order', label: '订单数据表 1', path: '/base-data/order' },
     ]
   },
 ]

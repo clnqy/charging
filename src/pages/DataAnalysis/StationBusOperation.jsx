@@ -4,6 +4,7 @@ import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import InlineEditableCell from './InlineEditableCell'
 import FieldTooltip from '../../components/FieldTooltip'
+import MonthPicker from './MonthPicker'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
@@ -148,7 +149,7 @@ const generateMonthData = (month) => {
 const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-48' },
-  { key: 'month', title: '月份', width: 'w-20' },
+  // { key: 'month', title: '月份', width: 'w-20' },
   { key: 'totalBusCount', title: '夜停车台数', width: 'w-20', editable: true, tip: '夜间停放在本站的公交车台数。' },
   { key: 'maxChargingCapacity', title: '最大充电产能(台)', width: 'w-32', tip: '来源于站点基础表，不支持手动修改。' },
   { key: 'chargingBusCount', title: '充电车台数', width: 'w-20', tip: '归属本站4518档案的公交车辆数量。' },
@@ -317,15 +318,7 @@ const StationBusOperation = () => {
           {/* 月份选择 */}
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 whitespace-nowrap">统计月份</label>
-            <select
-              value={selectedMonth}
-              onChange={(e) => handleMonthChange(e.target.value)}
-              className="px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
-            >
-              {monthList.map(month => (
-                <option key={month} value={month}>{month}</option>
-              ))}
-            </select>
+            <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
           </div>
 
           {/* 状态提示*/}
