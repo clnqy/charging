@@ -219,7 +219,7 @@ const BusLineEnergy = () => {
                     className={`px-2 py-2 border-b border-r border-gray-300 text-left text-sm font-medium text-gray-700 whitespace-nowrap ${
                       col.frozen ? 'bg-blue-50 sticky left-0 z-20' : col.highlighted ? 'bg-yellow-50' : 'bg-gray-50'
                     } align-middle`}
-                    style={{ minWidth: col.frozen ? '100px' : undefined, zIndex: col.frozen ? 20 : 10 }}
+                    style={{ textAlign: 'center',minWidth: col.frozen ? '100px' : undefined, zIndex: col.frozen ? 20 : 10 }}
                   >
                     <FieldTooltip content={columnTips[col.key]}>
                       {col.title}

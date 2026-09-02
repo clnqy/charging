@@ -9,6 +9,7 @@ const StationBusOperation = lazy(() => import('../pages/DataAnalysis/StationBusO
 const StationSocialOperation = lazy(() => import('../pages/DataAnalysis/StationSocialOperation'))
 const StationBusRevenue = lazy(() => import('../pages/DataAnalysis/StationBusRevenue'))
 const StationCost = lazy(() => import('../pages/DataAnalysis/StationCost'))
+const SelfOwnedCompetitorPrice = lazy(() => import('../pages/DataAnalysis/SelfOwnedCompetitorPrice'))
 const StationSocialRevenue = lazy(() => import('../pages/DataAnalysis/StationSocialRevenue'))
 const BusLineEnergy = lazy(() => import('../pages/DataAnalysis/BusLineEnergy'))
 const HistoricalElectricityPrice = lazy(() => import('../pages/DataAnalysis/HistoricalElectricityPrice'))
@@ -36,6 +37,7 @@ const AppRouter = () => {
         <Route path="data-analysis/station-social-operation" element={<StationSocialOperation />} />
         <Route path="data-analysis/station-bus-revenue" element={<StationBusRevenue />} />
         <Route path="data-analysis/station-cost" element={<StationCost />} />
+        <Route path="data-analysis/self-owned-competitor-price" element={<SelfOwnedCompetitorPrice />} />
         <Route path="data-analysis/station-social-revenue" element={<StationSocialRevenue />} />
         <Route path="data-analysis/bus-line-energy" element={<BusLineEnergy />} />
         <Route path="data-analysis/historical-electricity-price" element={<HistoricalElectricityPrice />} />

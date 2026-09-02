@@ -16,11 +16,16 @@ const PERIODS = [
 ]
 
 const CUSTOMERS = [
-  { customerNo: 'BUS-C001', customerName: '重庆公交集团' },
-  { customerNo: 'BUS-C002', customerName: '两江公交公司' },
-  { customerNo: 'EXT-C001', customerName: '两江大客户' },
-  { customerNo: 'EXT-C002', customerName: '新电途企业客户' },
-  { customerNo: 'EXT-C003', customerName: '园区物流车队' },
+  { customerNo: 'BUS-C001', customerName: '重庆公交集团', group: '公交客户' },
+  { customerNo: 'BUS-C002', customerName: '两江公交公司', group: '公交客户' },
+  { customerNo: 'EXT-C001', customerName: '两江大客户', group: '企业客户' },
+  { customerNo: 'EXT-C002', customerName: '新电途企业客户', group: '企业客户' },
+  { customerNo: 'EXT-C003', customerName: '园区物流车队', group: '企业客户' },
+]
+
+const CUSTOMER_TREE = [
+  { key: 'bus', title: '公交客户', children: CUSTOMERS.filter((customer) => customer.group === '公交客户') },
+  { key: 'enterprise', title: '企业客户', children: CUSTOMERS.filter((customer) => customer.group === '企业客户') },
 ]
 
 const STATION_OPTIONS = [
@@ -37,6 +42,7 @@ const STATION_OPTIONS = [
 ]
 
 const columns = [
+  { key: 'ruleName', title: '规则名称', width: 180 },
   { key: 'customerNo', title: '客户编号', width: 140 },
   { key: 'customerName', title: '客户名称', width: 180 },
   { key: 'settlementType', title: '结算类型', width: 120 },
@@ -55,6 +61,8 @@ const emptyRatios = { electricity: '', service: '' }
 
 const emptyForm = {
   id: null,
+  ruleName: '',
+  customerNos: [],
   customerNo: '',
   customerName: '',
   settlementStations: [],
@@ -71,6 +79,8 @@ const emptyForm = {
 const initialRules = [
   {
     id: 1,
+    ruleName: '公交集团分时结算规则',
+    customerNos: ['BUS-C001'],
     customerNo: 'BUS-C001',
     customerName: '重庆公交集团',
     settlementStations: ['ST001', 'ST002', 'ST003'],
@@ -87,6 +97,8 @@ const initialRules = [
   },
   {
     id: 2,
+    ruleName: '两江大客户比例结算规则',
+    customerNos: ['EXT-C001'],
     customerNo: 'EXT-C001',
     customerName: '两江大客户',
     settlementStations: ['ST004', 'ST005'],
@@ -103,6 +115,8 @@ const initialRules = [
   },
   {
     id: 3,
+    ruleName: '新电途企业客户临时规则',
+    customerNos: ['EXT-C002'],
     customerNo: 'EXT-C002',
     customerName: '新电途企业客户',
     settlementStations: ['ST006'],
@@ -122,6 +136,21 @@ const initialRules = [
 const toNumber = (value) => Number.parseFloat(value)
 const formatTwo = (value) => (value === '' || value === null || value === undefined ? '' : toNumber(value).toFixed(2))
 const getPrices = (rule, key) => ({ ...emptyPrices, ...(rule[key] || (key === 'electricityPrices' ? rule.busPrices : null) || {}) })
+
+const getRuleCustomerNos = (rule) => {
+  if (rule.customerNos?.length) return rule.customerNos
+  return rule.customerNo ? [rule.customerNo] : []
+}
+
+const getCustomerSummary = (customerNos = [], field = 'customerName') => {
+  if (!customerNos.length) return '-'
+  if (customerNos.length === CUSTOMERS.length) return field === 'customerName' ? '全部客户' : '全部'
+  const values = customerNos.map((customerNo) => {
+    const customer = CUSTOMERS.find((item) => item.customerNo === customerNo)
+    return customer?.[field] || customerNo
+  })
+  return values.length > 2 ? `${values.slice(0, 2).join('、')} 等 ${values.length} 个客户` : values.join('、')
+}
 
 const getStationSummary = (stationCodes = []) => {
   if (!stationCodes.length) return '-'
@@ -191,6 +220,7 @@ const Cell = ({ value, className = '' }) => (
 
 const cloneForm = (rule) => ({
   ...rule,
+  customerNos: getRuleCustomerNos(rule),
   settlementStations: [...(rule.settlementStations || [])],
   electricityPrices: getPrices(rule, 'electricityPrices'),
   servicePrices: getPrices(rule, 'servicePrices'),
@@ -205,6 +235,9 @@ const LargeCustomerRuleConfig = () => {
   const [form, setForm] = useState(emptyForm)
   const [errors, setErrors] = useState({})
   const [logs, setLogs] = useState([])
+  const [customerTreeOpen, setCustomerTreeOpen] = useState(false)
+  const [customerDropdownOpen, setCustomerDropdownOpen] = useState(false)
+  const [customerKeyword, setCustomerKeyword] = useState('')
   const [stationTreeOpen, setStationTreeOpen] = useState(false)
   const [stationDropdownOpen, setStationDropdownOpen] = useState(false)
   const [stationKeyword, setStationKeyword] = useState('')
@@ -216,11 +249,23 @@ const LargeCustomerRuleConfig = () => {
   const reportFields = useReportFields({
     storageKey: 'settlement:large-customer-rules',
     groups: [{ title: '大客户结算规则字段', columns }],
-    fixedKeys: ['customerNo', 'customerName', 'action'],
+    fixedKeys: ['ruleName', 'customerNo', 'customerName', 'action'],
   })
 
   const visibleColumns = reportFields.visibleColumns
+  const selectedCustomerNos = form.customerNos || []
+  const allCustomerSelected = selectedCustomerNos.length === CUSTOMERS.length
   const allStationSelected = form.settlementStations.length === STATION_OPTIONS.length
+  const filteredCustomerTree = useMemo(() => {
+    const keyword = customerKeyword.trim().toLowerCase()
+    if (!keyword) return CUSTOMER_TREE
+    return CUSTOMER_TREE.map((group) => ({
+      ...group,
+      children: group.children.filter((customer) => (
+        [customer.customerName, customer.customerNo].some((value) => value.toLowerCase().includes(keyword))
+      )),
+    })).filter((group) => group.children.length > 0)
+  }, [customerKeyword])
   const filteredStationOptions = useMemo(() => {
     const keyword = stationKeyword.trim().toLowerCase()
     if (!keyword) return STATION_OPTIONS
@@ -236,7 +281,13 @@ const LargeCustomerRuleConfig = () => {
   const filteredRules = useMemo(() => {
     const keyword = filters.keyword.trim().toLowerCase()
     return rules.filter((rule) => {
-      const matchKeyword = !keyword || [rule.customerNo, rule.customerName].some((value) => value.toLowerCase().includes(keyword))
+      const matchKeyword = !keyword || [
+        rule.ruleName,
+        rule.customerNo,
+        rule.customerName,
+        getCustomerSummary(getRuleCustomerNos(rule), 'customerNo'),
+        getCustomerSummary(getRuleCustomerNos(rule), 'customerName'),
+      ].some((value) => String(value || '').toLowerCase().includes(keyword))
       const matchType = !filters.settlementType || rule.settlementType === filters.settlementType
       const matchStatus = !filters.status || rule.status === filters.status
       return matchKeyword && matchType && matchStatus
@@ -256,7 +307,7 @@ const LargeCustomerRuleConfig = () => {
 
   const validateForm = () => {
     const nextErrors = {}
-    if (!form.customerNo) nextErrors.customerNo = '请选择客户'
+    if (!selectedCustomerNos.length) nextErrors.customerNos = '请选择客户'
     if (!form.settlementStations.length) nextErrors.settlementStations = '请选择至少一个结算充电站'
     if (!form.settlementType) nextErrors.settlementType = '请选择结算类型'
     if (!form.startDate) nextErrors.startDate = '请选择生效开始日期'
@@ -280,7 +331,7 @@ const LargeCustomerRuleConfig = () => {
 
     const hasOverlap = rules.some((rule) => (
       rule.id !== form.id &&
-      rule.customerNo === form.customerNo &&
+      getRuleCustomerNos(rule).some((customerNo) => selectedCustomerNos.includes(customerNo)) &&
       rule.status === '启用' &&
       form.status === '启用' &&
       form.startDate &&
@@ -295,6 +346,9 @@ const LargeCustomerRuleConfig = () => {
   const openCreate = () => {
     setForm(cloneForm(emptyForm))
     setErrors({})
+    setCustomerTreeOpen(false)
+    setCustomerDropdownOpen(false)
+    setCustomerKeyword('')
     setStationTreeOpen(false)
     setStationDropdownOpen(false)
     setStationKeyword('')
@@ -308,6 +362,9 @@ const LargeCustomerRuleConfig = () => {
       endDate: rule.endDate === '长期有效' ? '' : rule.endDate,
     })
     setErrors({})
+    setCustomerTreeOpen(false)
+    setCustomerDropdownOpen(false)
+    setCustomerKeyword('')
     setStationTreeOpen(false)
     setStationDropdownOpen(false)
     setStationKeyword('')
@@ -318,10 +375,13 @@ const LargeCustomerRuleConfig = () => {
 
   const saveRule = () => {
     if (!validateForm()) return
-    const customer = CUSTOMERS.find((item) => item.customerNo === form.customerNo)
+    const customers = CUSTOMERS.filter((item) => selectedCustomerNos.includes(item.customerNo))
     const normalized = {
       ...form,
-      customerName: customer.customerName,
+      ruleName: form.ruleName.trim(),
+      customerNos: [...selectedCustomerNos],
+      customerNo: customers.map((customer) => customer.customerNo).join('、'),
+      customerName: customers.map((customer) => customer.customerName).join('、'),
       endDate: form.longTerm ? '长期有效' : form.endDate,
       settlementStations: [...form.settlementStations],
       electricityPrices: normalizePrices(form.electricityPrices),
@@ -336,11 +396,13 @@ const LargeCustomerRuleConfig = () => {
     if (modal === 'create') {
       const nextRule = { ...normalized, id: Date.now() }
       setRules((prev) => [nextRule, ...prev])
-      addLog('新增', `新增 ${nextRule.customerName} 结算规则`)
+      addLog('新增', `新增 ${nextRule.ruleName || nextRule.customerName} 结算规则`)
     } else {
       setRules((prev) => prev.map((rule) => (rule.id === normalized.id ? normalized : rule)))
-      addLog('编辑', `编辑 ${normalized.customerName} 结算规则`)
+      addLog('编辑', `编辑 ${normalized.ruleName || normalized.customerName} 结算规则`)
     }
+    setCustomerDropdownOpen(false)
+    setCustomerKeyword('')
     setStationDropdownOpen(false)
     setStationKeyword('')
     setModal(null)
@@ -358,10 +420,10 @@ const LargeCustomerRuleConfig = () => {
       alert('已有订单引用，请先停用，禁止直接删除')
       return
     }
-    if (!window.confirm(`确认删除 ${rule.customerName} 的结算规则？`)) return
+    if (!window.confirm(`确认删除 ${rule.ruleName || rule.customerName} 的结算规则？`)) return
     setRules((prev) => prev.filter((item) => item.id !== rule.id))
     setSelectedIds((prev) => prev.filter((id) => id !== rule.id))
-    addLog('删除', `删除 ${rule.customerName} 结算规则`)
+    addLog('删除', `删除 ${rule.ruleName || rule.customerName} 结算规则`)
   }
 
   const handleSettlementTypeChange = (settlementType) => {
@@ -378,6 +440,41 @@ const LargeCustomerRuleConfig = () => {
   const updateNumber = (path, value) => {
     const [group, key] = path.split('.')
     setForm((prev) => ({ ...prev, [group]: { ...prev[group], [key]: value } }))
+  }
+
+  const setCustomerNos = (customerNos) => {
+    setForm((prev) => ({ ...prev, customerNos, customerNo: customerNos[0] || '' }))
+  }
+
+  const toggleCustomer = (customerNo) => {
+    setCustomerNos(
+      selectedCustomerNos.includes(customerNo)
+        ? selectedCustomerNos.filter((item) => item !== customerNo)
+        : [...selectedCustomerNos, customerNo]
+    )
+  }
+
+  const toggleCustomerGroup = (customers) => {
+    const customerNos = customers.map((customer) => customer.customerNo)
+    const selectedSet = new Set(selectedCustomerNos)
+    const groupSelected = customerNos.every((customerNo) => selectedSet.has(customerNo))
+    setCustomerNos(
+      groupSelected
+        ? selectedCustomerNos.filter((customerNo) => !customerNos.includes(customerNo))
+        : [...new Set([...selectedCustomerNos, ...customerNos])]
+    )
+  }
+
+  const toggleAllCustomers = () => {
+    setCustomerNos(allCustomerSelected ? [] : CUSTOMERS.map((customer) => customer.customerNo))
+  }
+
+  const toggleCustomerDropdown = () => {
+    if (customerDropdownOpen) {
+      setCustomerKeyword('')
+      setCustomerTreeOpen(false)
+    }
+    setCustomerDropdownOpen((open) => !open)
   }
 
   const toggleStation = (code) => {
@@ -424,6 +521,8 @@ const LargeCustomerRuleConfig = () => {
   }
 
   const renderCell = (rule, col) => {
+    if (col.key === 'customerNo') return <Cell value={getCustomerSummary(getRuleCustomerNos(rule), 'customerNo')} />
+    if (col.key === 'customerName') return <Cell value={getCustomerSummary(getRuleCustomerNos(rule), 'customerName')} />
     if (col.key === 'stationSummary') return <Cell value={getStationSummary(rule.settlementStations)} />
     if (col.key === 'ruleDetail') return <Cell value={getRuleDetail(rule)} />
     if (col.key === 'status') {
@@ -470,7 +569,7 @@ const LargeCustomerRuleConfig = () => {
             <input
               value={filters.keyword}
               onChange={(event) => setFilters((prev) => ({ ...prev, keyword: event.target.value }))}
-              placeholder="客户名称、客户编号"
+              placeholder="规则名称、客户名称、客户编号"
               className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
             />
           </div>
@@ -539,22 +638,102 @@ const LargeCustomerRuleConfig = () => {
         <div className="text-xs text-gray-500 truncate max-w-[60%]">{logs[0] ? `最近操作：${logs[0].type} ${logs[0].time} ${logs[0].content}` : '历史订单不回溯重算，规则变更仅作用于后续新增订单。'}</div>
       </div>
 
-      <Modal isOpen={modal === 'create' || modal === 'edit'} onClose={() => setModal(null)} title={modal === 'create' ? '新增大客户结算规则' : '编辑大客户结算规则'} showFooter={false}>
+      <Modal isOpen={modal === 'create' || modal === 'edit'} onClose={() => setModal(null)} title={modal === 'create' ? '新增大客户结算规则' : '编辑大客户结算规则'} showFooter={false} widthClass="max-w-3xl">
         <div className="space-y-4">
           {errors.overlap && <div className="px-3 py-2 bg-red-50 border border-red-200 rounded text-sm text-red-600">{errors.overlap}</div>}
           <section>
             <h4 className="text-sm font-semibold text-gray-800 mb-3 pb-1 border-b">基础信息</h4>
             <div className="grid grid-cols-2 gap-3">
               <div className="col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">客户名称<span className="text-red-500">*</span></label>
-                <select value={form.customerNo} onChange={(event) => {
-                  const customer = CUSTOMERS.find((item) => item.customerNo === event.target.value)
-                  setForm((prev) => ({ ...prev, customerNo: event.target.value, customerName: customer?.customerName || '' }))
-                }} className={`w-full px-3 py-2 border rounded text-sm bg-white focus:outline-none focus:border-primary ${errors.customerNo ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}>
-                  <option value="">请选择大客户档案</option>
-                  {CUSTOMERS.map((customer) => <option key={customer.customerNo} value={customer.customerNo}>{customer.customerName}（{customer.customerNo}）</option>)}
-                </select>
-                {errors.customerNo && <p className="text-xs text-red-500 mt-1">{errors.customerNo}</p>}
+                <label className="block text-sm font-medium text-gray-700 mb-1">规则名称</label>
+                <input
+                  type="text"
+                  value={form.ruleName || ''}
+                  onChange={(event) => setForm((prev) => ({ ...prev, ruleName: event.target.value }))}
+                  placeholder="请输入规则名称"
+                  className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                />
+              </div>
+              <div className="col-span-2">
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-sm font-medium text-gray-700">客户名称<span className="text-red-500">*</span></label>
+                  <button type="button" onClick={toggleAllCustomers} className="text-xs text-primary hover:underline">{allCustomerSelected ? '取消全选' : '全选'}</button>
+                </div>
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={toggleCustomerDropdown}
+                    className={`w-full px-3 py-2 border rounded text-sm bg-white focus:outline-none focus:border-primary flex items-center justify-between gap-2 ${errors.customerNos ? 'border-red-400 bg-red-50' : 'border-gray-200'}`}
+                  >
+                    <span className={`truncate ${selectedCustomerNos.length ? 'text-gray-700' : 'text-gray-400'}`}>
+                      {selectedCustomerNos.length ? `已选择 ${selectedCustomerNos.length} 个客户：${getCustomerSummary(selectedCustomerNos)}` : '请选择大客户档案'}
+                    </span>
+                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${customerDropdownOpen ? 'rotate-180' : ''}`} />
+                  </button>
+                  {customerDropdownOpen && (
+                    <div className="absolute z-50 mt-1 w-full bg-white border border-gray-200 rounded shadow-lg max-h-72 overflow-auto p-2">
+                      <div className="flex items-center gap-2 px-2 py-2">
+                        <Search className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                        <input
+                          type="text"
+                          value={customerKeyword}
+                          onChange={(event) => {
+                            setCustomerKeyword(event.target.value)
+                            setCustomerTreeOpen(true)
+                          }}
+                          placeholder="搜索客户名称或编号"
+                          className="w-full px-2 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                        />
+                      </div>
+                      <div className="flex items-center gap-2 px-2 py-2 hover:bg-blue-50 rounded">
+                        <button
+                          type="button"
+                          onClick={() => setCustomerTreeOpen((open) => !open)}
+                          className="text-gray-500 hover:text-primary"
+                          title={customerTreeOpen ? '收起' : '展开'}
+                        >
+                          {customerTreeOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                        </button>
+                        <label className="flex items-center gap-2 text-sm text-gray-700 flex-1 cursor-pointer">
+                          <input type="checkbox" checked={allCustomerSelected} onChange={toggleAllCustomers} />
+                          <span className="font-medium">全部客户</span>
+                          <span className="text-xs text-gray-400">({CUSTOMERS.length})</span>
+                        </label>
+                      </div>
+                      {(customerTreeOpen || customerKeyword.trim()) && (
+                        <div className="ml-7 mt-1 space-y-1">
+                          {filteredCustomerTree.length > 0 ? (
+                            filteredCustomerTree.map((group) => {
+                              const groupCustomerNos = group.children.map((customer) => customer.customerNo)
+                              const groupSelected = groupCustomerNos.every((customerNo) => selectedCustomerNos.includes(customerNo))
+                              return (
+                                <div key={group.key}>
+                                  <label className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 rounded cursor-pointer">
+                                    <input type="checkbox" checked={groupSelected} onChange={() => toggleCustomerGroup(group.children)} />
+                                    <span className="font-medium">{group.title}</span>
+                                    <span className="text-xs text-gray-400">({group.children.length})</span>
+                                  </label>
+                                  <div className="ml-6 space-y-1">
+                                    {group.children.map((customer) => (
+                                      <label key={customer.customerNo} className="flex items-center gap-2 px-2 py-1.5 text-sm text-gray-700 hover:bg-blue-50 rounded cursor-pointer">
+                                        <input type="checkbox" checked={selectedCustomerNos.includes(customer.customerNo)} onChange={() => toggleCustomer(customer.customerNo)} />
+                                        <span className="truncate" title={`${customer.customerName}（${customer.customerNo}）`}>{customer.customerName}</span>
+                                        <span className="text-xs text-gray-400 flex-shrink-0">{customer.customerNo}</span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })
+                          ) : (
+                            <div className="px-2 py-2 text-sm text-gray-400">未找到匹配客户</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {errors.customerNos && <p className="text-xs text-red-500 mt-1">{errors.customerNos}</p>}
               </div>
               <div className="col-span-2">
                 <div className="flex items-center justify-between mb-1">

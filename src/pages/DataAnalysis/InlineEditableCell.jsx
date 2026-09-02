@@ -9,6 +9,8 @@ const InlineEditableCell = ({
   onSave,
   className = '',
   inputClassName = '',
+  step,
+  min,
 }) => {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
@@ -49,6 +51,8 @@ const InlineEditableCell = ({
         type={inputType}
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
+        step={step}
+        min={min}
         onKeyDown={(e) => {
           if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault()

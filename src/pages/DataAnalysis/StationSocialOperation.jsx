@@ -8,17 +8,27 @@ import MonthPicker from './MonthPicker'
 
 // ==================== 基础站点数据 ====================
 const baseStationData = [
-  { code: 'YIM00100', name: '沙坪坝区陈家桥公交充电站', type: '自营站' },
-  { code: 'YIM00200', name: '北区光亮天润城公交充电站', type: '自营站' },
-  { code: 'YIM00300', name: '福佑路公交枢纽站', type: '自营站' },
-  { code: 'YIM00301', name: '福佑路公交充电站扩建项目（V2G）', type: '自营站' },
-  { code: 'YIM00302', name: '福佑路公交枢纽站二期', type: '自营站' },
-  { code: 'YIM00400', name: '碚都佳园首末站', type: '自营站' },
-  { code: 'YIM00500', name: '五里店公交站', type: '自营站' },
-  { code: 'YIM00600', name: '渝中区菜园坝公交充电站', type: '自营站' },
-  { code: 'YIM00700', name: '江北区观音桥公交充电站', type: '自营站' },
-  { code: 'YIM00800', name: '南岸区南坪公交充电站', type: '自营站' },
+  { code: 'YIM00100', name: '沙坪坝区陈家桥公交充电站', type: '自营站', businessHours: '00:00-24:00', nightGunCount: 8 },
+  { code: 'YIM00200', name: '北区光亮天润城公交充电站', type: '自营站', businessHours: '06:00-22:00', nightGunCount: 6 },
+  { code: 'YIM00300', name: '福佑路公交枢纽站', type: '自营站', businessHours: '05:30-23:30', nightGunCount: 10 },
+  { code: 'YIM00301', name: '福佑路公交充电站扩建项目（V2G）', type: '自营站', businessHours: '00:00-24:00', nightGunCount: 6 },
+  { code: 'YIM00302', name: '福佑路公交枢纽站二期', type: '自营站', businessHours: '06:00-22:00', nightGunCount: 5 },
+  { code: 'YIM00400', name: '碚都佳园首末站', type: '自营站', businessHours: '06:30-22:30', nightGunCount: 4 },
+  { code: 'YIM00500', name: '五里店公交站', type: '自营站', businessHours: '00:00-24:00', nightGunCount: 7 },
+  { code: 'YIM00600', name: '渝中区菜园坝公交充电站', type: '自营站', businessHours: '05:00-23:00', nightGunCount: 6 },
+  { code: 'YIM00700', name: '江北区观音桥公交充电站', type: '自营站', businessHours: '06:00-22:00', nightGunCount: 5 },
+  { code: 'YIM00800', name: '南岸区南坪公交充电站', type: '自营站', businessHours: '00:00-24:00', nightGunCount: 7 },
 ]
+
+const splitBusinessHours = (businessHours) => {
+  if (!businessHours) return { openTime: null, closeTime: null }
+  const [openTime, closeTime] = businessHours.split('-').map(item => item.trim())
+  return {
+    openTime: openTime || null,
+    closeTime: closeTime || null,
+  }
+}
+
 // ==================== 生成某月模拟数据 ====================
 const generateMonthData = (month) => {
   const seed = month.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
@@ -32,10 +42,9 @@ const generateMonthData = (month) => {
   }
 
   return baseStationData.map((station) => {
-    // 手动录入字段（初始为空）
-    const openTime = null
-    const closeTime = null
-    const nightGunCount = null
+    // 开放时间、关闭时间、夜间开放枪数来源于站点基础表，允许在本表覆盖修改。
+    const { openTime, closeTime } = splitBusinessHours(station.businessHours)
+    const nightGunCount = station.nightGunCount
 
     // 自动获取枪数量
     const gunCount = getRandom(10, 50)
@@ -109,37 +118,45 @@ const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-48' },
   { key: 'type', title: '站点类型', width: 'w-16' },
-  { key: 'openTime', title: '开放时间', width: 'w-20', editable: true },
-  { key: 'closeTime', title: '关闭时间', width: 'w-20', editable: true },
-  { key: 'gunCount', title: '枪数量', width: 'w-16' },
-  { key: 'nightGunCount', title: '夜间开放枪数量(0-6点)', width: 'w-28', editable: true },
-  { key: 'socialCharging', title: '社会充电量(kWh)', width: 'w-28' },
-  { key: 'dailyPerGun', title: '单枪日均充电量(kWh)', width: 'w-28' },
-  { key: 'utilizationRate', title: '设备利用率', width: 'w-24' },
-  { key: 'validOrders', title: '有效订单数(>2度)', width: 'w-28' },
-  { key: 'failOrders', title: '失败订单数(小于2度)', width: 'w-28' },
-  { key: 'startSuccessRate', title: '启动成功率', width: 'w-20' },
-  { key: 'sharpOrders', title: '尖订单数', width: 'w-16' },
-  { key: 'peakOrders', title: '峰订单数', width: 'w-16' },
-  { key: 'flatOrders', title: '平订单数', width: 'w-16' },
-  { key: 'valleyOrders1', title: '谷订单数(0-5点)', width: 'w-24' },
-  { key: 'valleyOrders2', title: '谷订单数(5-8点)', width: 'w-24' },
-  { key: 'serviceFee', title: '原始服务费(元)', width: 'w-28' },
-  { key: 'avgServicePrice', title: '平均服务费单价(元/kWh)', width: 'w-32' },
-  { key: 'sharpRatio', title: '尖占比', width: 'w-16' },
-  { key: 'peakRatio', title: '峰占比', width: 'w-16' },
-  { key: 'flatRatio', title: '平占比', width: 'w-16' },
-  { key: 'valleyRatio', title: '谷占比', width: 'w-16' },
-  { key: 'sharpPower', title: '尖电量', width: 'w-20' },
-  { key: 'peakPower', title: '峰电量', width: 'w-20' },
-  { key: 'flatPower', title: '平电量', width: 'w-20' },
-  { key: 'valleyPower', title: '谷电量', width: 'w-20' },
+  { key: 'openTime', title: '开放时间', width: 'w-20', editable: true, tip: '默认从站点基础表的营业时间拆分获取，可在本表修改。' },
+  { key: 'closeTime', title: '关闭时间', width: 'w-20', editable: true, tip: '默认从站点基础表的营业时间拆分获取，可在本表修改。' },
+  { key: 'gunCount', title: '枪数量', width: 'w-16', decimals: 0 },
+  { key: 'nightGunCount', title: '夜间开放枪数量(0-6点)', width: 'w-28', editable: true, decimals: 0, tip: '默认从站点基础表的夜间开放枪数获取，可在本表修改。' },
+  { key: 'socialCharging', title: '社会充电量(kWh)', width: 'w-28', decimals: 0 },
+  { key: 'dailyPerGun', title: '单枪日均充电量(kWh)', width: 'w-28', decimals: 0 },
+  { key: 'utilizationRate', title: '设备利用率', width: 'w-24', decimals: 1 },
+  { key: 'validOrders', title: '有效订单数(>2度)', width: 'w-28', decimals: 0 },
+  { key: 'failOrders', title: '失败订单数(小于2度)', width: 'w-28', decimals: 0 },
+  { key: 'startSuccessRate', title: '启动成功率', width: 'w-20', decimals: 0 },
+  { key: 'sharpOrders', title: '尖订单数', width: 'w-16', decimals: 0 },
+  { key: 'peakOrders', title: '峰订单数', width: 'w-16', decimals: 0 },
+  { key: 'flatOrders', title: '平订单数', width: 'w-16', decimals: 0 },
+  { key: 'valleyOrders1', title: '谷订单数(0-5点)', width: 'w-24', decimals: 0 },
+  { key: 'valleyOrders2', title: '谷订单数(5-8点)', width: 'w-24', decimals: 0 },
+  { key: 'serviceFee', title: '原始服务费(元)', width: 'w-28', decimals: 2 },
+  { key: 'avgServicePrice', title: '平均服务费单价(元/kWh)', width: 'w-32', decimals: 3 },
+  { key: 'sharpRatio', title: '尖占比', width: 'w-16', decimals: 0 },
+  { key: 'peakRatio', title: '峰占比', width: 'w-16', decimals: 0 },
+  { key: 'flatRatio', title: '平占比', width: 'w-16', decimals: 0 },
+  { key: 'valleyRatio', title: '谷占比', width: 'w-16', decimals: 0 },
+  { key: 'sharpPower', title: '尖电量', width: 'w-20', decimals: 2 },
+  { key: 'peakPower', title: '峰电量', width: 'w-20', decimals: 2 },
+  { key: 'flatPower', title: '平电量', width: 'w-20', decimals: 2 },
+  { key: 'valleyPower', title: '谷电量', width: 'w-20', decimals: 2 },
 ]
 // ==================== 格式化函数====================
 const formatNumber = (value, decimals = 2) => {
   if (value === null || value === undefined) return '-'
   if (typeof value === 'string') return value
   return new Intl.NumberFormat('zh-CN', { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(value)
+}
+
+const formatCellValue = (value, column) => {
+  if (value === null || value === undefined || value === '') return '-'
+  if (column.decimals === undefined) return typeof value === 'number' ? formatNumber(value) : value
+
+  const numericValue = Number(value)
+  return Number.isFinite(numericValue) ? formatNumber(numericValue, column.decimals) : value
 }
 
 // ==================== 组件 ====================
@@ -199,7 +216,7 @@ const StationSocialOperation = () => {
           openTime: manualForm.openTime || null,
           closeTime: manualForm.closeTime || null,
           gunCount: manualForm.gunCount ? parseInt(manualForm.gunCount) : null,
-          nightGunCount: manualForm.nightGunCount ? parseInt(manualForm.nightGunCount) : null,
+          nightGunCount: manualForm.nightGunCount ? parseInt(manualForm.nightGunCount, 10) : null,
         }
       })
       return newData
@@ -259,6 +276,10 @@ const StationSocialOperation = () => {
           <div className="flex items-center gap-1 text-xs text-green-600 bg-green-50 px-3 py-1.5 rounded-full">
             <RefreshCw className="w-3 h-3 animate-spin" />
             <span>更新频率（T+1）</span>
+          </div>
+          <div className="flex items-center gap-1 text-xs text-blue-700 bg-blue-50 px-3 py-1.5 rounded-full">
+            <AlertCircle className="w-3 h-3" />
+            <span>营业时间/夜间枪数默认取站点基础表</span>
           </div>
         </div>
 
@@ -343,7 +364,7 @@ const StationSocialOperation = () => {
                             onSave={(nextValue) => saveCellValue(row.code, col.key, nextValue)}
                           />
                         ) : (
-                          <span>{typeof value === 'number' ? formatNumber(value) : value}</span>
+                          <span>{formatCellValue(value, col)}</span>
                         )}
                       </td>
                     )
@@ -405,7 +426,8 @@ const StationSocialOperation = () => {
             <p className="text-sm text-gray-500 mb-2">拖拽文件到此处，或点击上传</p>
             <ul className="list-disc list-inside space-y-1 text-xs">
               <li>文件格式：.xlsx, .xls, .csv</li>
-              <li>必须包含列：站点编码、开放时间、关闭时间、枪数量、夜间开放枪数量</li>
+              <li>必须包含列：站点编码</li>
+              <li>可选列：开放时间、关闭时间、枪数量、夜间开放枪数量（导入后覆盖站点基础表默认值）</li>
               <li>站点编码用于匹配数据</li>
               <li>导入数据将绑定所选统计自然月存档</li>
             </ul>
@@ -414,7 +436,13 @@ const StationSocialOperation = () => {
       </Modal>
 
       {/* ========== 手动录入弹窗 ========== */}
-      <Modal isOpen={manualModalOpen} onClose={() => { setManualModalOpen(false); setEditingStation(null) }} title={`手动录入 - ${editingStation?.name || ''}`}>
+      <Modal
+        isOpen={manualModalOpen}
+        onClose={() => { setManualModalOpen(false); setEditingStation(null) }}
+        title={`手动录入 - ${editingStation?.name || ''}`}
+        onConfirm={handleManualSave}
+        confirmText="保存"
+      >
         <div className="space-y-4">
           {/* 只读字段展示 */}
           <div className="bg-gray-50 p-3 rounded text-sm text-gray-600">
@@ -479,7 +507,7 @@ const StationSocialOperation = () => {
 
           {/* 提示 */}
           <div className="bg-yellow-50 p-3 rounded text-sm text-yellow-800">
-            <p className="text-sm text-gray-500 mb-2">拖拽文件到此处，或点击上传</p>
+            <p className="text-sm text-yellow-800">开放时间、关闭时间、夜间开放枪数量已从站点基础表带入，保存后以本表修改值为准。</p>
           </div>
 
           {/* 操作按钮 */}

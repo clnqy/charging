@@ -13,6 +13,7 @@ const SECTION_TITLES = [
 ]
 
 const PAGE_MAP = {
+  '/data-analysis/self-owned-competitor-price': '\u81ea\u8425\u7ade\u54c1\u4ef7\u683c\u8868',
   '/data-analysis/station-summary': '站点经营汇总表',
   '/data-analysis/station-revenue': '单站营收表',
   '/data-analysis/station-bus-operation': '单站公交运营情况表',

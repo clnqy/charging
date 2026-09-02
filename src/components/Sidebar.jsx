@@ -24,13 +24,14 @@ const menuItems = [
     children: [
       { key: 'data-analysis-station-summary', label: '站点经营汇总表 5 ', path: '/data-analysis/station-summary' },
       { key: 'data-analysis-station-revenue', label: '单站营收表 4', path: '/data-analysis/station-revenue' },
-      { key: 'data-analysis-station-bus-operation', label: '单站公交运营情况表', path: '/data-analysis/station-bus-operation' },
-      { key: 'data-analysis-station-social-operation', label: '单站社会运营情况表', path: '/data-analysis/station-social-operation' },
-      { key: 'data-analysis-station-bus-revenue', label: '站点公交收入表', path: '/data-analysis/station-bus-revenue' },
-      { key: 'data-analysis-station-cost', label: '站点成本表', path: '/data-analysis/station-cost' },
-      { key: 'data-analysis-station-social-revenue', label: '单站社会营收情况表', path: '/data-analysis/station-social-revenue' },
+      { key: 'data-analysis-station-bus-operation', label: '单站公交运营情况表6', path: '/data-analysis/station-bus-operation' },
+      { key: 'data-analysis-station-social-operation', label: '单站社会运营情况表7', path: '/data-analysis/station-social-operation' },
+      { key: 'data-analysis-station-bus-revenue', label: '站点收入表', path: '/data-analysis/station-bus-revenue' },
+      { key: 'data-analysis-station-cost', label: '站点成本表 4', path: '/data-analysis/station-cost' },
+      // { key: 'data-analysis-station-social-revenue', label: '单站社会营收情况表', path: '/data-analysis/station-social-revenue' },
       { key: 'data-analysis-bus-line-energy', label: '公交单线能耗表 3 ', path: '/data-analysis/bus-line-energy' },
       { key: 'data-analysis-historical-electricity-price', label: '历年供电电价台账 2', path: '/data-analysis/historical-electricity-price' },
+      { key: 'data-analysis-self-owned-competitor-price', label: '自营竞品价格表 2', path: '/data-analysis/self-owned-competitor-price' },
     ]
   },
   {

@@ -79,7 +79,6 @@ const generateMonthData = (month) => {
 
     return {
       ...station,
-      month,
       totalCost,
       totalPowerConsumption,
       electricityBill,
@@ -113,16 +112,15 @@ const generateMonthData = (month) => {
 const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-40' },
-  { key: 'month', title: '月份', width: 'w-20' },
   { key: 'totalCost', title: '总成本(元)', width: 'w-24' },
-  { key: 'totalPowerConsumption', title: '供电电量(kWh)', width: 'w-28', inlineEdit: true },
+  { key: 'totalPowerConsumption', title: '总用电量(kWh)', width: 'w-28', inlineEdit: true },
   { key: 'electricityBill', title: '缴纳电费(元)', width: 'w-28', inlineEdit: true },
   { key: 'powerFactor', title: '功率因数', width: 'w-16', inlineEdit: true },
   { key: 'reactivePowerFee', title: '力调电费(元)', width: 'w-20', inlineEdit: true },
   { key: 'totalCharging', title: '总充电量(kWh)', width: 'w-28', inlineEdit: true },
   { key: 'electricityLoss', title: '电损比', width: 'w-16' },
-  { key: 'busElectricityCost', title: '其中:公交电费成本(元)', width: 'w-32' },
-  { key: 'socialElectricityCost', title: '其中:社会电费成本(元)', width: 'w-32' },
+  { key: 'busElectricityCost', title: '公交电费成本(元)', width: 'w-32' },
+  { key: 'socialElectricityCost', title: '社会电费成本(元)', width: 'w-32' },
   { key: 'siteRentUnit', title: '站点租赁单位电费成本(元)', width: 'w-24', inlineEdit: true },
   { key: 'partnerUnit', title: '支付合作单位分成成本(元)', width: 'w-24', inlineEdit: true },
   { key: 'busServiceFee', title: '公交充电现场服务费(元)', width: 'w-32', inlineEdit: true },
@@ -153,7 +151,7 @@ const StationCost = () => {
   const reportFields = useReportFields({
     storageKey: 'data-analysis:station-cost',
     groups: [{ title: '成本统计', columns }],
-    fixedKeys: ['code', 'name', 'month'],
+    fixedKeys: ['code', 'name'],
   })
   const [selectedMonth, setSelectedMonth] = useState('2026-05')
   const [importModalOpen, setImportModalOpen] = useState(false)
@@ -665,7 +663,7 @@ const StationCost = () => {
             <p className="font-medium mb-1 text-gray-800">站点信息（只读）</p>
             <div className="grid grid-cols-4 gap-2 text-xs">
               <p>站点编码：{editingStation?.code}</p>
-              <p>站点：{editingStation?.name}</p>              <p>统计月份：{editingStation?.month}</p>
+              <p>站点：{editingStation?.name}</p>
             </div>
           </div>
 
