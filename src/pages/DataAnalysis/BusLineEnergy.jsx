@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from 'react'
-import { Info, Car } from 'lucide-react'
+import { Info, Car, Search } from 'lucide-react'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import FieldTooltip from '../../components/FieldTooltip'
 import MonthPicker from './MonthPicker'
@@ -129,6 +129,7 @@ const formatMonthDisplay = (monthValue) => monthValue.replace('-', '年') + '月
 const BusLineEnergy = () => {
   const today = new Date()
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth(today))
+  const [searchKeyword, setSearchKeyword] = useState('')
   const startDate = useMemo(() => getMonthStartDate(selectedMonth), [selectedMonth])
   const endDate = useMemo(() => getMonthEndDate(selectedMonth), [selectedMonth])
   const reportFields = useReportFields({
@@ -142,6 +143,15 @@ const BusLineEnergy = () => {
     return generateBusLineData(startDate, endDate)
   }, [startDate, endDate])
 
+  // 线路模糊查询
+  const filteredData = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase()
+    if (!keyword) return currentData
+    return currentData.filter((row) =>
+      (row.line || '').toLowerCase().includes(keyword)
+    )
+  }, [currentData, searchKeyword])
+
   const exportFileName = useMemo(() => {
     return `公交线路用能明细表_${startDate}_${endDate}.xlsx`
   }, [startDate, endDate])
@@ -150,16 +160,16 @@ const BusLineEnergy = () => {
   const summaryRow = useMemo(() => {
     return {
       line: '汇总',
-      vehicles: currentData.reduce((sum, r) => sum + r.vehicles, 0),
-      routeKm: currentData.reduce((sum, r) => sum + r.routeKm, 0),
+      vehicles: filteredData.reduce((sum, r) => sum + r.vehicles, 0),
+      routeKm: filteredData.reduce((sum, r) => sum + r.routeKm, 0),
       avgKm: 0,
-      chargedVehicles: currentData.reduce((sum, r) => sum + r.chargedVehicles, 0),
-      chargedKm: currentData.reduce((sum, r) => sum + r.chargedKm, 0),
+      chargedVehicles: filteredData.reduce((sum, r) => sum + r.chargedVehicles, 0),
+      chargedKm: filteredData.reduce((sum, r) => sum + r.chargedKm, 0),
       chargedAvgKm: 0,
-      chargedKwh: currentData.reduce((sum, r) => sum + r.chargedKwh, 0),
+      chargedKwh: filteredData.reduce((sum, r) => sum + r.chargedKwh, 0),
       avgEnergy: 0,
     }
-  }, [currentData])
+  }, [filteredData])
 
   // 导出
   const handleExport = (keys) => {
@@ -178,6 +188,21 @@ const BusLineEnergy = () => {
           <div className="flex items-center gap-2">
             <label className="text-sm font-medium text-gray-700 whitespace-nowrap">统计月份</label>
             <MonthPicker value={selectedMonth} onChange={setSelectedMonth} />
+          </div>
+
+          {/* 线路模糊查询 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">线路</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="输入线路模糊查询"
+                className="w-56 pl-7 pr-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+              />
+            </div>
           </div>
 
           {/* 只读提示 */}
@@ -200,6 +225,7 @@ const BusLineEnergy = () => {
         </div>
         <span className="text-sm text-gray-500">
           统计月份：{formatMonthDisplay(selectedMonth)}
+          {searchKeyword.trim() ? `（筛选出 ${filteredData.length} 条线路）` : ''}
         </span>
       </div>
 
@@ -231,7 +257,14 @@ const BusLineEnergy = () => {
             </thead>
             <tbody className="divide-y divide-gray-100">
               {/* 明细行*/}
-              {currentData.map((row, index) => {
+              {filteredData.length === 0 && (
+                <tr>
+                  <td colSpan={reportFields.visibleColumns.length} className="px-2 py-8 text-center text-sm text-gray-400">
+                    未找到匹配“{searchKeyword.trim()}”的线路
+                  </td>
+                </tr>
+              )}
+              {filteredData.map((row, index) => {
                 const abnormal = isDataAbnormal(row)
                 
                 return (
@@ -266,6 +299,7 @@ const BusLineEnergy = () => {
               })}
               
               {/* 汇总行 */}
+              {filteredData.length > 0 && (
               <tr className="bg-blue-50 font-bold border-t-2 border-blue-200">
                 {reportFields.visibleColumns.map(col => {
                   const value = summaryRow[col.key]
@@ -288,6 +322,7 @@ const BusLineEnergy = () => {
                   )
                 })}
               </tr>
+              )}
             </tbody>
           </table>
         </div>

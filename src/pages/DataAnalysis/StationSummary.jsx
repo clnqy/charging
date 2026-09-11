@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from 'react'
-import { FileSpreadsheet, FileText, AlertCircle, Upload, RefreshCw, Clock } from 'lucide-react'
+import { FileSpreadsheet, FileText, AlertCircle, Upload, RefreshCw, Clock, Search } from 'lucide-react'
 import Modal from '../../components/Modal'
 import InlineEditableCell from './InlineEditableCell'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
@@ -74,6 +74,7 @@ const StationSummary = () => {
   const [importFile, setImportFile] = useState(null)
   const [importPreview, setImportPreview] = useState([])
   const [showPreview, setShowPreview] = useState(false)
+  const [searchKeyword, setSearchKeyword] = useState('')
   
   const [monthlyData, setMonthlyData] = useState(() => {
     const initial = {}
@@ -92,8 +93,18 @@ const StationSummary = () => {
     return newData
   }, [selectedMonth, monthlyData])
 
+  // 站点名称（含编码）模糊查询
+  const filteredData = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase()
+    if (!keyword) return currentData
+    return currentData.filter((row) =>
+      (row.name || '').toLowerCase().includes(keyword) ||
+      (row.code || '').toLowerCase().includes(keyword)
+    )
+  }, [currentData, searchKeyword])
+
   const totals = useMemo(() => {
-    return currentData.reduce((acc, item) => ({
+    return filteredData.reduce((acc, item) => ({
       plannedIncome: acc.plannedIncome + (item.plannedIncome || 0),
       targetIncome: acc.targetIncome + (item.targetIncome || 0),
       totalIncome: acc.totalIncome + (item.totalIncome || 0),
@@ -105,7 +116,7 @@ const StationSummary = () => {
       plannedIncome: 0, targetIncome: 0, totalIncome: 0,
       busIncome: 0, socialIncome: 0, totalCost: 0, grossProfit: 0
     })
-  }, [currentData])
+  }, [filteredData])
 
   const getMonthOptions = () => {
     const options = []
@@ -268,6 +279,21 @@ const StationSummary = () => {
             <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
           </div>
 
+          {/* 站点名称模糊查询 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">站点名称</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="输入站点名称模糊查询"
+                className="w-56 pl-7 pr-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+              />
+            </div>
+          </div>
+
           <div className="flex items-center gap-1 text-xs text-success bg-green-50 px-3 py-1.5 rounded-full">
             <RefreshCw className="w-3 h-3 animate-spin" />
             <span>每月自动生成</span>
@@ -297,8 +323,9 @@ const StationSummary = () => {
           <h2 className="text-lg font-bold text-gray-800">站点经营汇总表</h2>
           <span className="text-sm text-gray-500 ml-2">
             统计月份：{selectedMonth}
+            {searchKeyword.trim() ? `（筛选出 ${filteredData.length} 个站点）` : ''}
           </span>
-          {!currentData.some(d => d.plannedIncome !== null) && (
+          {!filteredData.some(d => d.plannedIncome !== null) && (
             <span className="text-xs text-warning bg-orange-50 px-2 py-0.5 rounded ml-2">
               请先导入可研收入和目标收入
             </span>
@@ -342,7 +369,14 @@ const StationSummary = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {currentData.map((row, index) => (
+              {filteredData.length === 0 && (
+                <tr>
+                  <td colSpan={reportFields.visibleColumns.length} className="px-2 py-8 text-center text-sm text-gray-400">
+                    未找到匹配“{searchKeyword.trim()}”的站点
+                  </td>
+                </tr>
+              )}
+              {filteredData.map((row, index) => (
                 <tr 
                   key={row.code} 
                   className={`hover:bg-gray-50 transition-colors ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/30'}`}
@@ -361,6 +395,7 @@ const StationSummary = () => {
                   ))}
                 </tr>
               ))}
+              {filteredData.length > 0 && (
               <tr className="bg-gray-100 font-bold border-t-2 border-gray-300">
                 {reportFields.visibleColumns.map((col, index) => (
                   <td
@@ -373,6 +408,7 @@ const StationSummary = () => {
                   </td>
                 ))}
               </tr>
+              )}
             </tbody>
           </table>
         </div>

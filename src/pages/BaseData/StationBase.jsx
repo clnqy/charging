@@ -24,6 +24,13 @@ const normalizeIntegerValue = (value) => {
   return Number.isFinite(parsed) ? Math.trunc(parsed) : null
 }
 
+// 小数数值归一化（用于费率类字段，如元/kWh）
+const normalizeDecimalValue = (value) => {
+  if (value === '' || value === null || value === undefined) return ''
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : ''
+}
+
 // Tooltip悬浮提示组件
 const CellTooltip = ({ content, children }) => {
   const [show, setShow] = useState(false)
@@ -174,6 +181,7 @@ const StationBase = () => {
     businessHours: '',
     nightGunCount: '',
     equipmentPower: '',
+    busPlatformServiceFee: '',
     remark: '',
   })
 
@@ -298,6 +306,7 @@ const StationBase = () => {
       businessHours: station.businessHours || '',
       nightGunCount: station.nightGunCount ?? '',
       equipmentPower: station.equipmentPower || '',
+      busPlatformServiceFee: station.busPlatformServiceFee ?? '',
       remark: station.remark || '',
     })
     setEditModalOpen(true)
@@ -314,6 +323,7 @@ const StationBase = () => {
       maxChargingCapacity: normalizeIntegerValue(editForm.maxChargingCapacity) ?? '',
       nightGunCount: normalizeIntegerValue(editForm.nightGunCount) ?? '',
       equipmentPower: normalizeIntegerValue(editForm.equipmentPower) ?? '',
+      busPlatformServiceFee: normalizeDecimalValue(editForm.busPlatformServiceFee),
     }
     setStationData((prev) => prev.map((station) => (
       station.code === editingStation.code ? nextStation : station
@@ -930,6 +940,7 @@ const StationBase = () => {
                 <p>合作单位：{selectedStation.coopUnit}</p>
                 <p>经营状态：{selectedStation.businessStatus}</p>
                 <p>现场管理单位：{selectedStation.managementUnit}</p>
+                <p>公交平台服务费：{selectedStation.busPlatformServiceFee ?? '-'} 元/kWh</p>
               </div>
             </div>
 
@@ -1197,6 +1208,18 @@ const StationBase = () => {
                 <option value="万马平台">万马平台</option>
                 <option value="国网平台">国网平台</option>
               </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">公交平台服务费(元/kWh)</label>
+              <input
+                type="number"
+                value={editForm.busPlatformServiceFee}
+                onChange={(e) => setEditForm({ ...editForm, busPlatformServiceFee: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary"
+                min="0"
+                step="0.0001"
+                placeholder="请输入数字"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">营业时间</label>

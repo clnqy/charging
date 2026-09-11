@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from 'react'
-import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3 } from 'lucide-react'
+import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3, Search } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import InlineEditableCell from './InlineEditableCell'
@@ -117,9 +117,9 @@ const generateMonthData = (month) => {
 const columns = [
   { key: 'code', title: '站点编码', width: 'w-24' },
   { key: 'name', title: '站点', width: 'w-48' },
-  { key: 'type', title: '站点类型', width: 'w-16' },
-  { key: 'openTime', title: '开放时间', width: 'w-20', editable: true, tip: '默认从站点基础表的营业时间拆分获取，可在本表修改。' },
-  { key: 'closeTime', title: '关闭时间', width: 'w-20', editable: true, tip: '默认从站点基础表的营业时间拆分获取，可在本表修改。' },
+  { key: 'type', title: '经营模式', width: 'w-16' },
+  { key: 'openTime', title: '开放时间', width: 'w-20', tip: '默认从站点基础表的营业时间拆分获取，可在本表修改。' },
+  { key: 'closeTime', title: '关闭时间', width: 'w-20', tip: '默认从站点基础表的营业时间拆分获取，可在本表修改。' },
   { key: 'gunCount', title: '枪数量', width: 'w-16', decimals: 0 },
   { key: 'nightGunCount', title: '夜间开放枪数量(0-6点)', width: 'w-28', editable: true, decimals: 0, tip: '默认从站点基础表的夜间开放枪数获取，可在本表修改。' },
   { key: 'socialCharging', title: '社会充电量(kWh)', width: 'w-28', decimals: 0 },
@@ -173,6 +173,7 @@ const StationSocialOperation = () => {
   const [importFile, setImportFile] = useState(null)
   const [editingStation, setEditingStation] = useState(null)
   const [manualForm, setManualForm] = useState({ openTime: '', closeTime: '', gunCount: '', nightGunCount: '' })
+  const [searchKeyword, setSearchKeyword] = useState('')
 
   // 月度数据存储
   const [monthlyData, setMonthlyData] = useState(() => {
@@ -190,6 +191,16 @@ const StationSocialOperation = () => {
   const currentData = useMemo(() => {
     return monthlyData[selectedMonth] || generateMonthData(selectedMonth)
   }, [selectedMonth, monthlyData])
+
+  // 站点名称（含编码）模糊查询
+  const filteredData = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase()
+    if (!keyword) return currentData
+    return currentData.filter((row) =>
+      (row.name || '').toLowerCase().includes(keyword) ||
+      (row.code || '').toLowerCase().includes(keyword)
+    )
+  }, [currentData, searchKeyword])
 
   // 打开手动录入弹窗
   const openManualModal = (station) => {
@@ -268,6 +279,21 @@ const StationSocialOperation = () => {
             <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
           </div>
 
+          {/* 站点名称模糊查询 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">站点名称</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="输入站点名称模糊查询"
+                className="w-56 pl-7 pr-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+              />
+            </div>
+          </div>
+
           {/* 状态提示*/}
           <div className="flex items-center gap-1 text-xs text-primary bg-blue-50 px-3 py-1.5 rounded-full">
             <Clock className="w-3 h-3" />
@@ -285,13 +311,6 @@ const StationSocialOperation = () => {
 
         <div className="flex items-center gap-2 flex-shrink-0">
           <button
-            onClick={() => openManualModal(currentData[0])}
-            className="bg-primary text-white px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity"
-          >
-            <Edit3 className="w-4 h-4" />
-            手动录入
-          </button>
-          <button
             onClick={() => { setImportMonth(''); setImportModalOpen(true) }}
             className="bg-primary text-white px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity"
           >
@@ -308,7 +327,7 @@ const StationSocialOperation = () => {
           <FileSpreadsheet className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-bold text-gray-800">单站社会运营明细表</h2>
         </div>
-        <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
+        <span className="text-sm text-gray-500">统计月份：{selectedMonth}{searchKeyword.trim() ? `（筛选出 ${filteredData.length} 个站点）` : ''}</span>
       </div>
 
       {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
@@ -336,7 +355,14 @@ const StationSocialOperation = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {currentData.map((row) => (
+              {filteredData.length === 0 && (
+                <tr>
+                  <td colSpan={reportFields.visibleColumns.length} className="px-2 py-8 text-center text-sm text-gray-400">
+                    未找到匹配“{searchKeyword.trim()}”的站点
+                  </td>
+                </tr>
+              )}
+              {filteredData.map((row) => (
                 <tr key={row.code} className="hover:bg-gray-50 transition-colors">
                   {reportFields.visibleColumns.map(col => {
                     const value = row[col.key]

@@ -1,5 +1,5 @@
 ﻿import React, { useState, useMemo } from 'react'
-import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3 } from 'lucide-react'
+import { FileSpreadsheet, Upload, AlertCircle, RefreshCw, Clock, Edit3, Search } from 'lucide-react'
 import Modal from '../../components/Modal'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import FieldTooltip from '../../components/FieldTooltip'
@@ -117,14 +117,14 @@ const columns = [
   { key: 'electricityBill', title: '缴纳电费(元)', width: 'w-28', inlineEdit: true },
   { key: 'powerFactor', title: '功率因数', width: 'w-16', inlineEdit: true },
   { key: 'reactivePowerFee', title: '力调电费(元)', width: 'w-20', inlineEdit: true },
-  { key: 'totalCharging', title: '总充电量(kWh)', width: 'w-28', inlineEdit: true },
+  { key: 'totalCharging', title: '总充电量(kWh)', width: 'w-28'},
   { key: 'electricityLoss', title: '电损比', width: 'w-16' },
-  { key: 'busElectricityCost', title: '公交电费成本(元)', width: 'w-32' },
+  { key: 'busElectricityCost', title: '公交电费成本(元)', width: 'w-32' , inlineEdit: true},
   { key: 'socialElectricityCost', title: '社会电费成本(元)', width: 'w-32' },
   { key: 'siteRentUnit', title: '站点租赁单位电费成本(元)', width: 'w-24', inlineEdit: true },
   { key: 'partnerUnit', title: '支付合作单位分成成本(元)', width: 'w-24', inlineEdit: true },
-  { key: 'busServiceFee', title: '公交充电现场服务费(元)', width: 'w-32', inlineEdit: true },
-  { key: 'socialServiceFee', title: '社会充电现场服务费(元)', width: 'w-32', inlineEdit: true },
+  { key: 'busServiceFee', title: '公交充电现场服务费(元)', width: 'w-32' },
+  { key: 'socialServiceFee', title: '社会充电现场服务费(元)', width: 'w-32' },
   { key: 'siteRent', title: '场地租金(元)', width: 'w-20', inlineEdit: true },
   { key: 'marketingCost', title: '营销成本(元)', width: 'w-20', inlineEdit: true },
   { key: 'signCost', title: '标识标牌成本(元)', width: 'w-24', inlineEdit: true },
@@ -154,6 +154,7 @@ const StationCost = () => {
     fixedKeys: ['code', 'name'],
   })
   const [selectedMonth, setSelectedMonth] = useState('2026-05')
+  const [searchKeyword, setSearchKeyword] = useState('')
   const [importModalOpen, setImportModalOpen] = useState(false)
   const [manualModalOpen, setManualModalOpen] = useState(false)
   const [importMonth, setImportMonth] = useState('')
@@ -206,6 +207,16 @@ const StationCost = () => {
   const currentData = useMemo(() => {
     return monthlyData[selectedMonth] || generateMonthData(selectedMonth)
   }, [selectedMonth, monthlyData])
+
+  // 站点名称（含编码）模糊查询
+  const filteredData = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase()
+    if (!keyword) return currentData
+    return currentData.filter((row) =>
+      (row.name || '').toLowerCase().includes(keyword) ||
+      (row.code || '').toLowerCase().includes(keyword)
+    )
+  }, [currentData, searchKeyword])
 
   // 打开手动录入弹窗
   const openManualModal = (station) => {
@@ -480,6 +491,21 @@ const StationCost = () => {
             <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
           </div>
 
+          {/* 站点名称模糊查询 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">站点名称</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="输入站点名称模糊查询"
+                className="w-56 pl-7 pr-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+              />
+            </div>
+          </div>
+
           {/* 状态提示*/}
           <div className="flex items-center gap-1 text-xs text-primary bg-blue-50 px-3 py-1.5 rounded-full">
             <Clock className="w-3 h-3" />
@@ -492,13 +518,13 @@ const StationCost = () => {
         </div>
 
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button
+          {/* <button
             onClick={() => openManualModal(currentData[0])}
             className="bg-primary text-white px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity"
           >
             <Edit3 className="w-4 h-4" />
             手动录入
-          </button>
+          </button> */}
           <button
             onClick={() => { setImportMonth(''); setImportModalOpen(true) }}
             className="bg-primary text-white px-4 py-2 rounded text-sm flex items-center gap-1 hover:opacity-90 transition-opacity"
@@ -516,7 +542,7 @@ const StationCost = () => {
           <FileSpreadsheet className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-bold text-gray-800">站点月度成本明细表</h2>
         </div>
-        <span className="text-sm text-gray-500">统计月份：{selectedMonth}</span>
+        <span className="text-sm text-gray-500">统计月份：{selectedMonth}{searchKeyword.trim() ? `（筛选出 ${filteredData.length} 个站点）` : ''}</span>
       </div>
 
       {/* ========== 主表格区域（占剩余主内容高度86%）========= */}
@@ -544,7 +570,14 @@ const StationCost = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {currentData.map((row) => (
+              {filteredData.length === 0 && (
+                <tr>
+                  <td colSpan={reportFields.visibleColumns.length} className="px-2 py-8 text-center text-sm text-gray-400">
+                    未找到匹配“{searchKeyword.trim()}”的站点
+                  </td>
+                </tr>
+              )}
+              {filteredData.map((row) => (
                 <tr key={row.code} className="hover:bg-gray-50 transition-colors">
                   {reportFields.visibleColumns.map(col => {
                     const value = row[col.key]

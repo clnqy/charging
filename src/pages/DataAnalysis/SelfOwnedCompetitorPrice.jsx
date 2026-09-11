@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, Clock, FileSpreadsheet, RefreshCw } from 'lucide-react'
+import { AlertCircle, Clock, FileSpreadsheet, RefreshCw, Search } from 'lucide-react'
 import ReportFieldControls, { useReportFields } from '../../components/ReportFieldControls'
 import InlineEditableCell from './InlineEditableCell'
 import FieldTooltip from '../../components/FieldTooltip'
@@ -214,6 +214,7 @@ const SelfOwnedCompetitorPrice = () => {
     [stationData],
   )
   const [selectedMonth, setSelectedMonth] = useState(DEFAULT_MONTH)
+  const [searchKeyword, setSearchKeyword] = useState('')
   const [monthlyData, setMonthlyData] = useState(() => {
     const saved = readMonthlyData()
     return saved || { [DEFAULT_MONTH]: [] }
@@ -229,6 +230,16 @@ const SelfOwnedCompetitorPrice = () => {
     () => monthlyData[selectedMonth] || createMonthData(selectedMonth, selfOwnedStations),
     [monthlyData, selectedMonth, selfOwnedStations],
   )
+
+  // 站点名称（含编码）模糊查询
+  const filteredData = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase()
+    if (!keyword) return currentData
+    return currentData.filter((row) =>
+      (row.name || '').toLowerCase().includes(keyword) ||
+      (row.code || '').toLowerCase().includes(keyword)
+    )
+  }, [currentData, searchKeyword])
 
   const visibleGroups = useMemo(() => {
     const visibleSet = new Set(reportFields.visibleKeys)
@@ -350,6 +361,20 @@ const SelfOwnedCompetitorPrice = () => {
             <label className="text-sm font-medium text-gray-700 whitespace-nowrap">统计月份</label>
             <MonthPicker value={selectedMonth} onChange={handleMonthChange} />
           </div>
+          {/* 站点名称模糊查询 */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">站点名称</label>
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-2 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={searchKeyword}
+                onChange={(e) => setSearchKeyword(e.target.value)}
+                placeholder="输入站点名称模糊查询"
+                className="w-56 pl-7 pr-3 py-1.5 border border-gray-200 rounded text-sm focus:outline-none focus:border-primary bg-white"
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-1 text-xs text-primary bg-blue-50 px-3 py-1.5 rounded-full">
             <Clock className="w-3 h-3" />
             <span>每月自动生成</span>
@@ -373,7 +398,7 @@ const SelfOwnedCompetitorPrice = () => {
           <FileSpreadsheet className="w-5 h-5 text-primary" />
           <h2 className="text-lg font-bold text-gray-800">自营竞品价格表</h2>
         </div>
-        <span className="text-sm text-gray-500">当前统计月份：{selectedMonth}</span>
+        <span className="text-sm text-gray-500">当前统计月份：{selectedMonth}{searchKeyword.trim() ? `（筛选出 ${filteredData.length} 个站点）` : ''}</span>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm overflow-hidden flex flex-col flex-1 min-h-0">
@@ -443,7 +468,7 @@ const SelfOwnedCompetitorPrice = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {currentData.map((row) => (
+              {filteredData.map((row) => (
                 <tr key={row.code} className="hover:bg-gray-50">
                   {reportFields.visibleColumns.map((column) => {
                     const isAuto = column.source === 'auto'
@@ -476,10 +501,12 @@ const SelfOwnedCompetitorPrice = () => {
                   })}
                 </tr>
               ))}
-              {currentData.length === 0 && (
+              {filteredData.length === 0 && (
                 <tr>
                   <td colSpan={reportFields.visibleColumns.length} className="px-3 py-10 text-center text-gray-500">
-                    暂无自营站点数据
+                    {currentData.length === 0
+                      ? '暂无自营站点数据'
+                      : `未找到匹配“${searchKeyword.trim()}”的站点`}
                   </td>
                 </tr>
               )}
